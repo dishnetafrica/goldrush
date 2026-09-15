@@ -1,0 +1,676 @@
+/*-------------------------------------------------
+  [ ## About ]
+*/
+.about-section{
+    .section-header{
+        p{
+            font-size: 14px;
+            font-weight: 400;
+        }
+    }
+}
+.about-content-wrapper{
+    margin-right: 20px;
+}
+
+.about-list{
+    li{
+        padding-top: 20px;
+        font-weight: 700;
+        color: $color__heading;
+        span{
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            display: inline-block;
+            text-align: center;
+            background-color: rgba($base--color, .1);
+            border-radius: 50%;
+            color: $base--color;
+            margin-right: 10px;
+        }
+    }
+}
+
+/*-------------------------------------------------
+    [ ### Brand block ]
+*/
+.brand-section {
+  padding: 20px 0;
+  border-top: 1px solid $border--base;
+  border-bottom: 1px solid $border--base;
+  background: $body--bg;
+}
+
+.brand-slider {
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.brand-item {
+  width: 120px;
+  margin: 0 auto;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.brand-item img {
+  display: inline-block;
+}
+
+/*-------------------------------------------------
+    [ ## service block ]
+*/
+.service-section{
+    position: relative;
+}
+.service-item{
+    position: relative;
+    padding: 20px;
+    height: 100%;
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    z-index: 1;
+    transition: all 0.3s;
+    @media only screen and (max-width: 991px) {
+      padding: 10px;
+    }
+    @media only screen and (max-width: 575px) {
+      border: 2px solid $border--base;
+    }
+    &:hover{
+        transform: translateY(-5px);
+        background: $border--base;
+        .service-bg{
+          bottom: 0;
+      }
+    }
+    .icon{
+        margin-right: 20px;
+        i{
+            font-size: 58px;
+            color: $base--color;
+        }
+    }
+    .service-bg{
+        position: absolute;
+        left: 0px;
+        right: 0px;
+        bottom: -50px;
+        height: 169px;
+        transition: all 500ms ease;
+        background-repeat: repeat-x;
+        z-index: 4;
+    }
+    .service-content{
+      p{
+        margin-bottom: 0;
+      }
+    }
+}
+
+/*--------------------------------------------------------------
+# Statistics-block
+--------------------------------------------------------------*/
+.statistics-section{
+    margin-top: 30px;
+}
+.statistics-wrapper{
+    padding: 55px 70px;
+    border-radius: 30px;
+    position: relative;
+    overflow: hidden;
+    z-index: 10;
+    @media only screen and (max-width: 1199px) {
+        padding: 40px;
+    }
+}
+.statistics-item{
+    @media only screen and (max-width: 575px) {
+        text-align: center;
+    }
+    .odo-area{
+        .odo-title{
+            display: inline-block;
+            font-size: 40px;
+            margin-bottom: 0px;
+            margin-top: -17px;
+            @media only screen and (max-width: 991px) {
+                font-size: 30px;
+                margin-top: -10px;
+            }
+            @media only screen and (max-width: 575px) {
+                font-size: 24px;
+            }
+        }
+        .title{
+            display: inline-block;
+            font-size: 40px;
+            margin-bottom: 0;
+            @media only screen and (max-width: 991px) {
+                font-size: 30px;
+            }
+            @media only screen and (max-width: 575px) {
+                font-size: 24px;
+            }
+        }
+    }
+    p{
+        font-weight: 600;
+        color: $color__text;
+        @media only screen and (max-width: 575px) {
+            font-size: 12px;
+        }
+    }
+}
+
+/*-------------------------------------------------
+    [ ### contact block ]
+*/
+.contact-form-area{
+    box-shadow: 0px 4px 8px rgba(40, 36, 49, 0.06);
+    border: 2px solid $border--base;
+    border-radius: 10px;
+    padding: 30px;
+    .contact-form{
+        label{
+            color: $color__heading;
+            font-weight: 500;
+            span{
+                color: $base--color;
+            }
+        }
+    }
+}
+.contact-widget-box {
+    box-shadow: 0px 4px 8px rgba(40, 36, 49, 0.06);
+    border: 2px solid $border--base;
+    border-radius: 10px;
+    padding: 15px;
+}
+.contact-widget-item-wrapper {
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+    margin: -20px;
+    .contact-widget-item {
+        display: flex;
+        margin: 20px;
+        .contact-widget-icon {
+            width: 2.75rem;
+            height: 2.75rem;
+            border: 2px solid $border--base;
+            border-radius: 50%;
+            text-align: center;
+            color: #52526C;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            svg {
+                fill: $base--color;
+            }
+        }
+        .contact-widget-content {
+            padding-left: 10px;
+        }
+    }
+}
+
+/*-------------------------------------------------
+    [ ### account block ]
+*/
+.account-section {
+    position: relative;
+    min-height: 100vh;
+    z-index: 1;
+    overflow: hidden;
+  }
+  .account-section.login {
+    display: flex;
+    align-items: center;
+  }
+  .account-section .account-element {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 45%;
+    height: 100%;
+  }
+  @media only screen and (max-width: 1199px) {
+    .account-section .account-element {
+      width: 40%;
+    }
+  }
+  @media only screen and (max-width: 991px) {
+    .account-section .account-element {
+      width: 50%;
+    }
+  }
+  @media only screen and (max-width: 767px) {
+    .account-section .account-element {
+      width: 100%;
+      height: 400px;
+    }
+  }
+  .account-section .account-element img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .account-section .right {
+    padding: 1.5rem 2rem;
+    width: 55%;
+    min-height: 100vh;
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: column;
+    background-color: #ffffff;
+    justify-content: space-between;
+  }
+  @media only screen and (max-width: 1199px) {
+    .account-section .right {
+      width: 60%;
+    }
+  }
+  @media only screen and (max-width: 991px) {
+    .account-section .right {
+      width: 50%;
+    }
+  }
+  @media only screen and (max-width: 767px) {
+    .account-section .right {
+      width: 100%;
+      padding: 1.5rem 1rem;
+      padding-top: 430px;
+    }
+  }
+  
+  .account-wrapper {
+    position: relative;
+    display: flex;
+    background-color: $section--bg;
+    border: 2px solid $border--base;
+    box-shadow: rgb(0 0 0 / 15%) 0px 3px 7px 0px;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  @media only screen and (max-width: 767px) {
+    .account-wrapper {
+      display: block;
+      margin: 30px 0;
+    }
+  }
+  .account-wrapper .account-thumb {
+    width: 50%;
+  }
+  @media only screen and (max-width: 767px) {
+    .account-wrapper .account-thumb {
+      width: 100%;
+    }
+  }
+  .account-wrapper .account-thumb img {
+    height: 100%;
+    object-fit: cover;
+  }
+  .account-wrapper .account-form-area {
+    padding: 40px;
+  }
+  @media only screen and (max-width: 767px) {
+    .account-wrapper .account-form-area {
+      width: 100%;
+      padding: 30px;
+    }
+  }
+  
+  .account-logo {
+    margin-bottom: 20px;
+    .site-logo{
+        display: inline-block;
+    }
+  }
+  
+  .account-header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 40px;
+  }
+  
+  .account-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .account-header .title {
+    margin-bottom: 0;
+  }
+  
+  .account-form-area p {
+    font-size: 14px;
+  }
+  .account-form-area .form-group {
+    position: relative;
+  }
+  .account-form-area .form-group .show-pass {
+    position: absolute;
+    top: 43px;
+    right: 30px;
+    font-size: 14px;
+    -webkit-transition: 0.5s;
+    transition: 0.5s;
+  }
+  
+  .account-form textarea {
+    min-height: 200px;
+  }
+  
+  .forgot-item label {
+    margin-bottom: 0;
+  }
+  .forgot-item label a {
+    text-decoration: underline;
+  }
+  
+  .or-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 37px;
+    margin-bottom: 20px;
+  }
+  @media only screen and (max-width: 991px) {
+    .or-area {
+      margin-bottom: 45px;
+    }
+  }
+  @media only screen and (max-width: 575px) {
+    .or-area {
+      gap: unset;
+    }
+  }
+  .or-area .or-line {
+    height: 1px;
+    border: 1px solid $border--base;
+    flex-grow: 1;
+  }
+  @media only screen and (max-width: 575px) {
+    .or-area .or-line {
+      display: none;
+    }
+  }
+  .or-area .or-title {
+    margin-bottom: 0;
+    font-size: 14px;
+  }
+  
+  .account-form-btn {
+    text-align: center;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+  }
+  .account-form-btn a {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background-color: $section--bg;
+    border-radius: 50%;
+    margin: 8px;
+    font-size: 26px;
+    color: $base--color;
+    transition: all 0.3s;
+    &:hover{
+        background-color: $base--color;
+        color: $white;
+        svg{
+            fill: $white;
+        }
+    }
+  }
+  .account-form-btn a svg {
+    fill: $base--color;
+  }
+  
+  .account-item label {
+    font-size: 15px;
+    margin-bottom: 0;
+  }
+  .account-item label a {
+    text-decoration: underline;
+  }
+
+  .otp {
+    display: inline-block;
+    width: 70px;
+    height: 50px;
+    text-align: center;
+    padding: 0;
+    border-radius: 5px;
+    background-color: transparent;
+  }
+  .otp:focus {
+    border: 1px solid $base--color;
+  }
+  
+  .otp.required {
+    border: 1px solid #ea5455;
+  }
+  
+  #time {
+    color: #ea5455;
+  }
+
+  .show_hide_password{
+    input{
+      padding-right: 45px;
+    }
+  }
+
+/*-------------------------------------------------
+    [ ### map block ]
+*/
+.map-section{
+  overflow: hidden;
+  #world-map-markers{
+    height: 600px;
+    @media only screen and (max-width: 1199px) {
+      height: 400px;
+    }
+    @media only screen and (max-width: 767px) {
+      height: 200px;
+    }
+  }
+  .map-content{
+    padding-top: 30px;
+    .map-statistics-wrapper{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: -30px;
+      .statistics-item{
+        margin: 30px;
+        .statistics-content{
+          text-align: center;
+        }
+      }
+    }
+    .content-bottom{
+      text-align: center;
+      padding-top: 30px;
+      p{
+        color: $color__heading;
+        font-weight: 600;
+      }
+      a{
+        color: $base--color;
+        i{
+          margin-left: 4px;
+        }
+      }
+    }
+  }
+}
+.odometer-digit-spacer{
+  padding: 0 2px;
+}
+/*-------------------------------------------------
+    [ ### work block ]
+*/
+.work-section{
+  .work-item{
+    padding: 10px 30px;
+    text-align: center;
+    @media only screen and (max-width: 991px) {
+      padding: 10px;
+    }
+    .thumb-area{
+      overflow: hidden;
+      width: 40%;
+      height: auto;
+      margin: 0 auto;
+      padding-bottom: 10px;
+      img{
+        width: 100%;
+        height: auto;
+      }
+    }
+  }
+}
+/*-------------------------------------------------
+    [ ### Choose us block ]
+*/
+.choose-us-section{
+  .choose-us-main-wrapper{
+    .choose-us-item{
+      text-align: center;
+      height: 100%;
+      .icon-wrapper{
+        display: flex;
+        justify-content: center;
+        .icon-area{
+          position: relative;
+          width: 100px;
+          height: 100px;
+          border: 2px solid $border--base;
+          border-radius: 50% 50% 50% 5px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-size: 38px;
+          i{
+            color: $base--color;
+          }
+          .choose-badge{
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-size: 12px;
+            line-height: 12px;
+            font-weight: 400;
+            padding: 8px;
+            border-radius: 10px;
+            background: $section--bg;
+            border: 2px solid $border--base;
+          }
+        }
+      }
+      .title{
+        margin-top: 15px;
+      }
+    }
+  }
+}
+
+/*-------------------------------------------------
+    [ ### app section block ]
+*/
+.download-btn-area{
+  margin: -5px;
+  a{
+    margin: 5px;
+  }
+}
+
+/*-------------------------------------------------
+    [ ### Plan block ]
+*/
+.plan-item{
+  padding: 20px 60px;
+  background-color: $section--bg;
+  border: 1px solid $border--base;
+  border-radius: 20px;
+  height: 100%;
+  @media only screen and (max-width: 1399px) {
+    padding: 20px 30px;
+  }
+  @media only screen and (max-width: 1199px) {
+    padding: 20px 15px;
+  }
+  .icon-area{
+      display: flex;
+      justify-content: center;
+      margin-top: -50px;
+      i{
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background-color: $base--color;
+          color: $white;
+          font-size: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
+      img{
+        width: 100px;
+      }
+  }
+  .content-area{
+      margin-top: 20px;
+      .title{
+          margin-bottom: 10px;
+      }
+      .price{
+          span{
+              font-size: 14px;
+              font-weight: 600;
+          }
+      }
+      padding-bottom: 30px;
+      margin-bottom: 30px;
+      border-bottom: 3px solid $border--base;
+  }
+  .plan-list{
+    text-align: start;
+      li{
+          margin-bottom: 15px;
+          font-size: 14px;
+          i{
+              padding: 2px;
+              background-color: $border--base;
+              color: $base--color;
+              border-radius: 50%;
+              margin-right: 5px;
+          }
+          &:last-child{
+              margin-bottom: 0;
+          }
+      }
+  }
+}
+
+#show_hide_password{
+  input{
+    padding-right: 50px;
+  }
+}

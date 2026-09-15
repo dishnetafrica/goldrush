@@ -1,0 +1,104 @@
+@isset ($transaction)
+<div class="dashboard-list-wrapper">
+    <div class="dashboard-list-item-wrapper">
+        <div class="dashboard-list-item sent">
+            <div class="dashboard-list-left">
+                <div class="dashboard-list-user-wrapper">
+                    <div class="dashboard-list-user-icon">
+                        <i class="las la-arrow-right"></i>
+                    </div>
+                    <div class="dashboard-list-user-content">
+                        <h4 class="title">{{ __("Balance Update") }}</h4>
+                        <span class="{{ $transaction->string_status->class }}">
+                            {{ __($transaction->string_status->value) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-list-right">
+                <h4 class="main-money text--base">{{ get_amount($transaction->request_amount) }}{{ $transaction->request_currency }}</h4>
+                <h6 class="exchange-money">{{ get_amount($transaction->receive_amount) }}{{ @$item->payment_currency }}</h6>
+            </div>
+        </div>
+        <div class="preview-list-wrapper">
+            <div class="preview-list-item">
+                <div class="preview-list-left">
+                    <div class="preview-list-user-wrapper">
+                        <div class="preview-list-user-icon">
+                            <i class="las la-exchange-alt"></i>
+                        </div>
+                        <div class="preview-list-user-content">
+                            <span>{{ __("Exchange Rate") }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-list-right">
+                    <span>{{ get_amount(1,$transaction->request_currency) . " = " . get_amount($transaction->exchange_rate,$transaction->payment_currency) }}</span>
+                </div>
+            </div>
+            <div class="preview-list-item">
+                <div class="preview-list-left">
+                    <div class="preview-list-user-wrapper">
+                        <div class="preview-list-user-icon">
+                            <i class="las la-wallet"></i>
+                        </div>
+                        <div class="preview-list-user-content">
+                            <span>{{__("Amount")}}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-list-right">
+                    <span class="text--danger">{{ get_amount($transaction->request_amount) }}{{ $transaction->payment_currency }}</span>
+                </div>
+            </div>
+            <div class="preview-list-item">
+                <div class="preview-list-left">
+                    <div class="preview-list-user-wrapper">
+                        <div class="preview-list-user-icon">
+                            <i class="las la-battery-half"></i>
+                        </div>
+                        <div class="preview-list-user-content">
+                            <span>{{ __("Remark") }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-list-right">
+                    <span>{{ $transaction->remark }}</span>
+                </div>
+            </div>
+            <div class="preview-list-item">
+                <div class="preview-list-left">
+                    <div class="preview-list-user-wrapper">
+                        <div class="preview-list-user-icon">
+                            <i class="las la-receipt"></i>
+                        </div>
+                        <div class="preview-list-user-content">
+                            <span>{{__("Total Amount")}}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-list-right">
+                    <span class="text--warning">{{ get_amount($transaction->total_payable) }}{{ $transaction->payment_currency }}</span>
+                </div>
+            </div>
+            <div class="preview-list-item">
+                <div class="preview-list-left">
+                    <div class="preview-list-user-wrapper">
+                        <div class="preview-list-user-icon">
+                            <i class="las la-smoking"></i>
+                        </div>
+                        <div class="preview-list-user-content">
+                            <span>{{ __("Status") }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-list-right">
+                    <span class="{{ $transaction->string_status->class }}">
+                        {{ __($transaction->string_status->value) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endisset

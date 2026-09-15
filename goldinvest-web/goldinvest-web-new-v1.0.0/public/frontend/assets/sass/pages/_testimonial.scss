@@ -1,0 +1,180 @@
+/*--------------------------------------------------------------
+# Testimonial-block
+--------------------------------------------------------------*/
+.testimonial-section{
+    position: relative;
+    overflow: hidden;
+    .element-area{
+        position: absolute;
+        top: 0;
+        left: 16%;
+        width: 600px;
+        height: 600px;
+    }
+}
+.testimonial-slider-wrapper{
+    margin: -20px;
+}
+.testimonial-slider{
+    overflow: hidden;
+    padding: 20px;
+    .swiper-wrapper{
+        .swiper-slide-active{
+            .testimonial-item{
+                transform: scale(1);
+                .service-bg{
+                    bottom: 0;
+                }
+            }
+        }
+    }
+}
+.testimonial-item{
+    padding: 30px;
+    border-radius: 20px;
+    background-color: $section--bg;
+    border: 1px solid $border--base;
+    overflow: hidden;
+    transition: all 0.3s;
+    transform: scale(0.9);
+    @media only screen and (max-width: 1199px) {
+        padding: 23px 30px 30px;
+    }
+    @media only screen and (max-width: 1099px) {
+        padding: 18px 25px 25px;
+    }
+    &:hover{
+        transform: scale(1);
+        .service-bg{
+            bottom: 0;
+        }
+    }
+    .service-bg{
+        position: absolute;
+        left: 0px;
+        right: 0px;
+        bottom: -170px;
+        height: 169px;
+        transition: all 500ms ease;
+        background-repeat: repeat-x;
+        z-index: 4;
+    }
+    .testimonial-icon-list{
+        li{
+            display: inline-block;
+            i{
+                font-size: 18px;
+                font-weight: 900;
+                color: #e4ab19;
+                @media only screen and (max-width: 1199px) {
+                    font-size: 16px;
+                }
+                @media only screen and (max-width: 1099px) {
+                    font-size: 14px;
+                }
+            }
+        }
+        li+li{
+            margin-left: 5px;
+            @media only screen and (max-width: 1199px) {
+                margin-left: 2px;
+            }
+            @media only screen and (max-width: 1199px) {
+                margin-left: 0;
+            }
+        }
+    }
+    .testimonial-title{
+        padding: 15px 0;
+        margin-bottom: 0;
+        line-height: 31.2px;
+        margin-top: -6px;
+        color: $color__heading;
+        @media only screen and (max-width: 1199px) {
+            padding: 18px 0 25px;
+            font-size: 20px;
+        }
+        @media only screen and (max-width: 1199px) {
+            padding: 18px 0 25px;
+            font-size: 20px;
+        }
+        @media only screen and (max-width: 1099px) {
+            padding: 8px 0 15px;
+            font-size: 18px;
+        }
+    }
+    p{
+        font-size: 16px;
+        margin-top: -7px;
+        font-weight: 400;
+        @media only screen and (max-width: 1199px) {
+            font-size: 15px;
+        }
+        @media only screen and (max-width: 1109px) {
+            font-size: 14px;
+        }
+    }
+    .testimonial-user-area{
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        .user-area{
+            img{
+                margin-right: 25px;
+                height: 60px;
+                width: 60px;
+                border-radius: 15px;
+                @media only screen and (max-width: 1199px) {
+                    margin-right: 20px;
+                    height: 55px;
+                    width: 55px;
+                }
+                @media only screen and (max-width: 1099px) {
+                    margin-right: 15px;
+                    height: 50px;
+                    width: 50px;
+                }
+            }
+        }
+        .title-area{
+            h5{
+                font-size: 24px;
+                line-height: 31.2px;
+                font-weight: 600;
+                margin-bottom: 5px;
+                color: $color__text;
+                @media only screen and (max-width: 1199px) {
+                    font-size: 18px;
+                }
+                @media only screen and (max-width: 1099px) {
+                    font-size: 16px;
+                }
+            }
+            p{
+                color: $base--color;
+                font-size: 18px;
+                font-weight: 400;
+                line-height: 30px;
+                @media only screen and (max-width: 1199px) {
+                    font-size: 14px;
+                }
+                @media only screen and (max-width: 1099px) {
+                    font-size: 13px;
+                }
+            }
+        }
+    }
+}
+
+.testimonial-bottom-wrapper{
+    padding-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.testimonial-date{
+    font-size: 12px;
+    i{
+        color: $base--color;
+    }
+}

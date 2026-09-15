@@ -1,0 +1,271 @@
+/*-------------------------------------------------
+    [ ## Fields ]
+*/
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    &:focus {
+        outline: none;
+    }
+}
+input,textarea{
+    padding: 12px 20px;
+    &::placeholder{
+        color: $color__heading;
+    }
+}
+textarea {
+    display: block;
+    width: 100%;
+    display: block;
+    min-height: 130px;
+}
+input,
+select,
+textarea {
+    border: 1px solid $border--base;
+    vertical-align: baseline;
+    font-size: 100%;
+    color: $color__heading;
+}
+label {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    font-family: $font_heading;
+    display: block;
+}
+/*-------------------------------------------------
+    [ ## Forms ]
+*/
+select{
+    outline: none;
+    cursor: pointer;
+}
+option{
+    color: $color__heading;
+}
+.input-group{
+    margin-bottom: 15px;
+    flex-wrap: nowrap;
+    input{
+        border-radius: 10px 0 0 10px;
+        border: 1px solid $border--base;
+        color: $color__heading;
+        height: 45px;
+    }
+}
+.form-control:disabled, .form-control[readonly]{
+    background-color: rgba($color__text, 0.2);
+    color: rgba($color__heading, 0.7);
+}
+
+.input-group-append, .input-group-prepend {
+    display: -ms-flexbox;
+    display: flex;
+}
+.input-group-append{
+    input{
+        border-radius: 0 10px 10px 0;
+        border: 1px solid $border--base;
+        border-right: none;
+        background-color: $white;
+    }
+}
+.input-group-text {
+    border: none;
+    font-size: 14px;
+    background: $base--color;
+    color: $white;
+    height: 45px;
+    border-radius: 0 10px 10px 0;
+    font-weight: 500;
+    &.copytext{
+        border-radius: 10px 0 0 10px;
+    }
+}
+.custom-check-group {
+    display: block;
+    margin-bottom: 12px;
+    input{
+        padding: 0;
+        height: initial;
+        width: initial;
+        margin-bottom: 0;
+        display: none;
+        cursor: pointer;
+        &:checked{
+            &+label{
+                &::before{
+                    background-color: $base--color;
+                    border: 1px solid $base--color;
+                }
+                &::after{
+                    content: '';
+                    display: block;
+                    position: absolute;
+                    top: 3px;
+                    left: 7px;
+                    width: 5px;
+                    height: 10px;
+                    border: solid $white;
+                    border-width: 0 2px 2px 0;
+                    transform: rotate(45deg);
+                }
+            }
+        }
+    }
+    label{
+        position: relative;
+        cursor: pointer;
+        &::before{
+            content: '';
+            -webkit-appearance: none;
+            appearance: none;
+            background: $white;
+            border: 1px solid $border--base;
+            border-radius: 3px;
+            padding: 8px;
+            display: inline-block;
+            position: relative;
+            vertical-align: middle;
+            cursor: pointer;
+            margin-right: 8px;
+            top: -2px;
+        }
+    }
+}
+.form-group {
+    margin-bottom: 20px;
+}
+.form-control{
+    border: 1px solid $border--base;
+    font-size: 14px;
+    height: 50px;
+    &:focus{
+        box-shadow: none;
+        border: 1px solid $border--base;
+    }
+}
+.form--control{
+    background-color: transparent;
+    border: 1px solid $border--base;
+    box-shadow: none;
+    height: 45px;
+    color: $color__heading;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: $font_heading;
+    font-weight: 600;
+    padding: 10px 15px;
+    width: 100%;
+    &:focus{
+        background-color: transparent;
+        border-color: $base--color;
+        box-shadow: none;
+        color: $color__heading;
+    }
+    &::placeholder{
+        color: rgba($color__text, 0.5);
+    }
+}
+.select2-container{
+    -ms-flex: 0 0 100%;
+    flex: 0 0 100%;
+    width: 100%;
+}
+.selection{
+    width: 100%;
+}
+.select2-selection--single{
+    width: 100%;
+    height: 45px !important;
+    outline: none;
+    background: transparent !important;
+    font-size: 15px;
+    box-shadow: none;
+    padding: 10px 10px;
+    border-radius: 10px !important;
+    vertical-align: top;
+    display: inline-block;
+    border: 1px solid $border--base !important;
+    box-sizing: border-box;
+    span{
+        margin: 0;
+        width: 100%;
+        color: $color__heading !important;
+        line-height: 21px !important;
+        font-weight: 600;
+    }
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow{
+    height: auto;
+    position: absolute;
+    top: 22px;
+    right: 7px;
+    width: 20px;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow b{
+    border-color: $color__text transparent transparent transparent;
+}
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b{
+    border-color: transparent transparent $color__text transparent;
+}
+
+.input-group select,.nice-select {
+    width: auto;
+    padding: 0 15px 0 15px;
+    border: none !important;
+    background-color: $base--color !important;
+    line-height: 45px;
+}
+.input-group{
+    select option {
+        margin: 40px;
+        background: $section--bg !important;
+        border: 1px solid $border--base !important;
+        color: $white;
+        text-shadow: none;
+    }
+}
+
+select option {
+    margin: 40px;
+    background: $section--bg !important;
+    border: 1px solid $border--base !important;
+    color: $white;
+    text-shadow: none;
+}
+
+
+.select2-dropdown {
+    background-color: $section--bg;
+    border: 1px solid $border--base;
+    border-radius: 10px;
+}
+.select2-container--default .select2-results__option--selected {
+    background-color: rgba($color__text, 0.2);
+    color: $white;
+}
+
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+    background-color: $base--color;
+    color: $white;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid $border--base;
+    background: transparent;
+    border-radius: 5px;
+}
+
+.select2-container--open .select2-dropdown--below {
+    border-top: none;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+[type="search"]::-webkit-search-cancel-button {
+    -webkit-filter: grayscale(100%); /* Safari 6.0 - 9.0 */
+    filter: grayscale(100%);
+  }

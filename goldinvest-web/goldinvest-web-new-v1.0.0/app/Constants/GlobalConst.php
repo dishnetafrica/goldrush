@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Constants;
+
+class GlobalConst {
+    const USER_PASS_RESEND_TIME_MINUTE = "1";
+
+    const ACTIVE = true;
+    const BANNED = false;
+    const SUCCESS = true;
+    const DEFAULT_TOKEN_EXP_SEC = 3600;
+
+    const VERIFIED = 1;
+    const APPROVED = 1;
+    const PENDING = 2;
+    const REJECTED = 3;
+    const DEFAULT = 0;
+    const UNVERIFIED = 0;
+
+    const USER      = "USER";
+    const ADMIN = "ADMIN";
+
+    const TRANSFER  = "transfer";
+    const EXCHANGE  = "exchange";
+    const ADD       = "add";
+    const OUT       = "out";
+    const PAYMENT   = "payment";
+
+    const INVEST_PROFIT_DAILY_BASIS = "DAILY-BASIS";
+    const INVEST_PROFIT_ONE_TIME = "ONE-TIME";
+
+    const PAYMENT_TYPE_USER_WALLET = "USER-WALLET";
+    const PAYMENT_TYPE_CASH_ON_DELIVERY = "CASH-ON-DELIVERY";
+
+    const RUNNING   = 2;
+    const COMPLETE  = 1;
+    const CANCEL = 3;
+
+    const INVESTMENT = "INVESTMENT";
+    const PROFIT     = "PROFIT";
+
+    const UNKNOWN = "UNKNOWN";
+    const SETUP_PAGE = 'SETUP_PAGE';
+    const USEFUL_LINK_PRIVACY_POLICY = "PRIVACY_POLICY";
+
+    const ACCEPTED = 1;
+    const ONGOING = 2;
+    const DELIVERED = 3;
+    const CANCELLED = 4;
+
+    const CURRENT_BALANCE   = "c_balance";
+    const PROFIT_BALANCE    = "p_balance";
+}

@@ -1,0 +1,26 @@
+<svg width="209" height="177" viewBox="0 0 209 177" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle opacity="0.3" cx="96.6665" cy="84.1333" r="74.3335" stroke="#FC5B3F" stroke-width="4"/>
+  
+  <!-- Group with shadow effect -->
+  <g filter="url(#black_shadow)">
+    <circle cx="96.6671" cy="84.1334" r="58.0943" fill="white"/>
+  </g>
+  
+  <path d="M77.9697 84.1333L91.3247 97.4883L118.035 70.7783" stroke="#FC5B3F" stroke-width="9.38667" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle opacity="0.2" cx="189.5" cy="35.5" r="3.5" fill="#FC5B3F"/>
+  <circle opacity="0.3" cx="18.5" cy="155.5" r="4.5" fill="#FC5B3F"/>
+  <circle opacity="0.6" cx="9.5" cy="22.5" r="9.5" fill="#FC5B3F"/>
+  <circle opacity="0.4" cx="203" cy="120" r="6" fill="#FC5B3F"/>
+  
+  <!-- Definitions for filters -->
+  <defs>
+    <!-- Blackish shadow filter -->
+    <filter id="black_shadow" x="50" y="50" width="200%" height="200%">
+      <feOffset result="offOut" in="SourceAlpha" dx="4" dy="4" />
+      <feGaussianBlur result="blurOut" in="offOut" stdDeviation="8" />
+      <feFlood flood-color="black" flood-opacity="0.5" />
+      <feComposite in2="blurOut" operator="in" />
+      <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+    </filter>
+  </defs>
+</svg>
