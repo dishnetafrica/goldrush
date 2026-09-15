@@ -13,9 +13,24 @@ done
 mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
          storage/framework/views storage/framework/testing storage/logs bootstrap/cache
 
-# 3. .env must be bind-mounted; refuse to start without it
+# 3. .env: use a bind-mounted file if present, otherwise generate one from the container
+#    environment (EasyPanel "Environment" tab). Container variables always take precedence.
 if [ ! -f .env ]; then
-  echo "FATAL: /var/www/html/.env is not mounted (see runbook section 7 and 8)" >&2
+  echo "No .env mounted; generating /var/www/html/.env from container environment variables"
+  : > .env
+  for k in APP_ENV APP_NAME APP_KEY APP_DEBUG APP_URL APP_MODE APP_TIMEZONE PRODUCT_KEY AD_PRODUCT_ID \
+           LOG_CHANNEL LOG_DEPRECATIONS_CHANNEL LOG_LEVEL \
+           DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD \
+           QUEUE_CONNECTION CACHE_DRIVER SESSION_DRIVER SESSION_LIFETIME SESSION_SECURE_COOKIE FILESYSTEM_DISK BROADCAST_DRIVER \
+           MAIL_MAILER MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_PASSWORD MAIL_ENCRYPTION MAIL_FROM_ADDRESS MAIL_FROM_NAME \
+           PUSHER_APP_ID PUSHER_APP_KEY PUSHER_APP_SECRET PUSHER_HOST PUSHER_PORT PUSHER_SCHEME PUSHER_APP_CLUSTER; do
+    if v=$(printenv "$k" 2>/dev/null); then
+      printf '%s="%s"\n' "$k" "$v" >> .env
+    fi
+  done
+fi
+if [ -z "$(printenv APP_KEY 2>/dev/null)" ] && ! grep -q '^APP_KEY=.\{10,\}' .env; then
+  echo "FATAL: APP_KEY is not set (set it in the EasyPanel Environment tab)" >&2
   exit 1
 fi
 
