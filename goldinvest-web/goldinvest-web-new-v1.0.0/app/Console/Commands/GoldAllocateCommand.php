@@ -13,11 +13,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * Puts an investor's money into a deal.
  *
- * By default this commits the money: the investor's spendable balance is debited
- * and the amount is held against the lot until the deal is paid out. That is what
+ * This always commits the money: the investor's spendable balance is debited and
+ * the amount is held against the lot until the deal is paid out. That is what
  * stops the same money being withdrawn through Money Out while it is physically
- * sitting in gold. Pass --no-lock to record the funding without moving anything,
- * which is only right when the cash never passed through the platform.
+ * sitting in gold.
+ *
+ * There is deliberately no way to record funding without debiting. An allocation
+ * that moves no balance leaves the investor able to withdraw money the company
+ * has already spent, and makes committed capital disagree with the deals that
+ * hold it. Money that never passed through the platform is not an allocation.
  */
 class GoldAllocateCommand extends Command
 {
@@ -28,7 +32,6 @@ class GoldAllocateCommand extends Command
                             {--all : use everything the investor has available}
                             {--from=balance : balance|profit|both — which wallet the money comes from}
                             {--share= : this investor\'s profit share for this deal, in percent}
-                            {--no-lock : record the funding without debiting the wallet}
                             {--note= }
                             {--dry-run : show what would happen and change nothing}';
 
@@ -88,8 +91,6 @@ class GoldAllocateCommand extends Command
             return self::FAILURE;
         }
 
-        $lock = ! $this->option('no-lock');
-
         $fromBalance = in_array($from, ['balance', 'both'], true) ? (float) $wallet->balance : 0.0;
         $fromProfit  = in_array($from, ['profit', 'both'], true) ? (float) $wallet->profit_balance : 0.0;
         $available   = $fromBalance + $fromProfit;
@@ -112,7 +113,7 @@ class GoldAllocateCommand extends Command
             return self::FAILURE;
         }
 
-        if ($lock && $amount > $available + 0.00000001) {
+        if ($amount > $available + 0.00000001) {
             $this->error($user->username . ' has ' . number_format($available, 2) . ' ' . $currency->code
                 . ' available from ' . $from . ', which is less than ' . number_format($amount, 2) . '.');
             $this->line('  Current balance: ' . number_format((float) $wallet->balance, 2));
@@ -144,15 +145,11 @@ class GoldAllocateCommand extends Command
         $this->line('Deal      : ' . $lot->lot_code . ' — ' . ($lot->project_name ?? ''));
         $this->line('Investor  : ' . $user->username);
         $this->line('Amount    : ' . number_format($amount, 2) . ' ' . $currency->code);
-        if ($lock) {
-            $this->line('Taken from: ' . number_format($takeFromBalance, 2) . ' current balance + '
-                . number_format($takeFromProfit, 2) . ' profit balance');
-            $this->line('After     : balance ' . number_format((float) $wallet->balance - $takeFromBalance, 2)
-                . ', profit ' . number_format((float) $wallet->profit_balance - $takeFromProfit, 2)
-                . ', committed to this deal ' . number_format($amount, 2));
-        } else {
-            $this->warn('Attribution only: no wallet balance will move, and this money stays withdrawable.');
-        }
+        $this->line('Taken from: ' . number_format($takeFromBalance, 2) . ' current balance + '
+            . number_format($takeFromProfit, 2) . ' profit balance');
+        $this->line('After     : balance ' . number_format((float) $wallet->balance - $takeFromBalance, 2)
+            . ', profit ' . number_format((float) $wallet->profit_balance - $takeFromProfit, 2)
+            . ', committed to this deal ' . number_format($amount, 2));
         if ($this->option('share') !== null) {
             $this->line('Share     : ' . number_format((float) $this->option('share'), 2) . ' % of this deal\'s profit');
         }
@@ -181,57 +178,53 @@ class GoldAllocateCommand extends Command
 
         DB::beginTransaction();
         try {
-            $trxId = null;
+            $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GC');
+            $newBalance = (float) $wallet->balance - $takeFromBalance;
 
-            if ($lock) {
-                $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GC');
-                $newBalance = (float) $wallet->balance - $takeFromBalance;
+            DB::table('transactions')->insert([
+                'type'              => CapitalAllocation::TRX_LOCK,
+                'trx_id'            => $trxId,
+                'user_type'         => 'USER',
+                'user_id'           => $user->id,
+                'wallet_id'         => $wallet->id,
+                'request_amount'    => $amount,
+                'request_currency'  => $currency->code,
+                'exchange_rate'     => 1,
+                'percent_charge'    => 0,
+                'fixed_charge'      => 0,
+                'total_charge'      => 0,
+                'total_payable'     => $amount,
+                'receive_amount'    => $amount,
+                'receiver_type'     => 'USER',
+                'receiver_id'       => $user->id,
+                'available_balance' => $newBalance,
+                'payment_currency'  => $currency->code,
+                'remark'            => 'Capital committed to gold deal (' . $lot->lot_code . ')',
+                'details'           => json_encode([
+                'lot_code'          => $lot->lot_code,
+                'project'           => $lot->project_name,
+                'purchase_date'     => optional($lot->purchase_date)->toDateString(),
+                'from_balance_usd'  => $takeFromBalance,
+                'from_profit_usd'   => $takeFromProfit,
+                'direction'         => 'out',
+                ]),
+                'status'     => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-                DB::table('transactions')->insert([
-                    'type'              => CapitalAllocation::TRX_LOCK,
-                    'trx_id'            => $trxId,
-                    'user_type'         => 'USER',
-                    'user_id'           => $user->id,
-                    'wallet_id'         => $wallet->id,
-                    'request_amount'    => $amount,
-                    'request_currency'  => $currency->code,
-                    'exchange_rate'     => 1,
-                    'percent_charge'    => 0,
-                    'fixed_charge'      => 0,
-                    'total_charge'      => 0,
-                    'total_payable'     => $amount,
-                    'receive_amount'    => $amount,
-                    'receiver_type'     => 'USER',
-                    'receiver_id'       => $user->id,
-                    'available_balance' => $newBalance,
-                    'payment_currency'  => $currency->code,
-                    'remark'            => 'Capital committed to gold deal (' . $lot->lot_code . ')',
-                    'details'           => json_encode([
-                        'lot_code'          => $lot->lot_code,
-                        'project'           => $lot->project_name,
-                        'purchase_date'     => optional($lot->purchase_date)->toDateString(),
-                        'from_balance_usd'  => $takeFromBalance,
-                        'from_profit_usd'   => $takeFromProfit,
-                        'direction'         => 'out',
-                    ]),
-                    'status'     => 1,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+            $affected = DB::table('user_wallets')
+                ->where('id', $wallet->id)
+                ->where('balance', '>=', $takeFromBalance)
+                ->where('profit_balance', '>=', $takeFromProfit)
+                ->update([
+                    'balance'        => DB::raw('balance - ' . $takeFromBalance),
+                    'profit_balance' => DB::raw('profit_balance - ' . $takeFromProfit),
+                    'updated_at'     => now(),
                 ]);
 
-                $affected = DB::table('user_wallets')
-                    ->where('id', $wallet->id)
-                    ->where('balance', '>=', $takeFromBalance)
-                    ->where('profit_balance', '>=', $takeFromProfit)
-                    ->update([
-                        'balance'        => DB::raw('balance - ' . $takeFromBalance),
-                        'profit_balance' => DB::raw('profit_balance - ' . $takeFromProfit),
-                        'updated_at'     => now(),
-                    ]);
-
-                if ($affected !== 1) {
-                    throw new \RuntimeException('The wallet balance changed while this allocation was being written. Nothing was debited.');
-                }
+            if ($affected !== 1) {
+                throw new \RuntimeException('The wallet balance changed while this allocation was being written. Nothing was debited.');
             }
 
             CapitalAllocation::create([
@@ -241,10 +234,10 @@ class GoldAllocateCommand extends Command
                 'share_percent'           => $this->option('share') !== null ? (float) $this->option('share') : null,
                 'allocated_at'            => now()->toDateString(),
                 'status'                  => CapitalAllocation::STATUS_ALLOCATED,
-                'locked_balance'          => $lock,
-                'locked_from'             => $lock ? $lockedFrom : null,
-                'locked_from_balance_usd' => $lock ? $takeFromBalance : 0,
-                'locked_from_profit_usd'  => $lock ? $takeFromProfit : 0,
+                'locked_balance'          => true,
+                'locked_from'             => $lockedFrom,
+                'locked_from_balance_usd' => $takeFromBalance,
+                'locked_from_profit_usd'  => $takeFromProfit,
                 'lock_trx_id'             => $trxId,
                 'notes'                   => $this->option('note'),
             ]);
@@ -258,14 +251,11 @@ class GoldAllocateCommand extends Command
         }
 
         $this->newLine();
-        if ($lock) {
-            $this->info('Committed ' . number_format($amount, 2) . ' ' . $currency->code . ' to ' . $lot->lot_code
-                . ' for ' . $user->username . ($trxId ? '  (' . $trxId . ')' : ''));
-            $this->line('That money is now out of reach of Money Out until this deal is paid out.');
-        } else {
-            $this->info('Recorded ' . number_format($amount, 2) . ' ' . $currency->code . ' of funding for '
-                . $lot->lot_code . ' without touching any balance.');
-        }
+        $this->info('Committed ' . number_format($amount, 2) . ' ' . $currency->code . ' to ' . $lot->lot_code
+            . ' for ' . $user->username . '  (' . $trxId . ')');
+        $this->line('That money is now out of reach of Money Out until this deal is paid out.');
+
+        $this->call('ledger:sync', ['user' => $user->username, '--quiet-success' => true]);
 
         return self::SUCCESS;
     }

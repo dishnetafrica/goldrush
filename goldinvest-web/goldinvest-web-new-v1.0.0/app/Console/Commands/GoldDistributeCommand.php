@@ -196,6 +196,12 @@ class GoldDistributeCommand extends Command
 
         $this->releaseCapital($lot, $defaultCurrency);
 
+        // The ledger pulls rather than being pushed to, so nudge it now instead of
+        // leaving the investor's position a minute out of date after a payout.
+        foreach ($toPay as [$user, $line]) {
+            $this->call('ledger:sync', ['user' => $user->username, '--quiet-success' => true]);
+        }
+
         LotResult::updateOrCreate(
             ['gold_lot_id' => $lot->id],
             [
@@ -253,10 +259,14 @@ class GoldDistributeCommand extends Command
                 continue;
             }
 
+            // Each part of the commitment goes back to the bucket it was taken
+            // from, so that closing a deal never turns profit into capital.
+            $split = $allocation->returnSplit();
+
             DB::beginTransaction();
             try {
                 $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GR');
-                $newBalance = (float) $wallet->balance + $allocation->amount_usd;
+                $newBalance = (float) $wallet->balance + $split['available'];
 
                 DB::table('transactions')->insert([
                     'type'              => CapitalAllocation::TRX_RELEASE,
@@ -280,17 +290,22 @@ class GoldDistributeCommand extends Command
                     'details'           => json_encode([
                         'lot_code'     => $lot->lot_code,
                         'project'      => $lot->project_name,
-                        'committed_on' => optional($allocation->allocated_at)->toDateString(),
-                        'lock_trx_id'  => $allocation->lock_trx_id,
-                        'direction'    => 'in',
+                        'committed_on'    => optional($allocation->allocated_at)->toDateString(),
+                        'lock_trx_id'     => $allocation->lock_trx_id,
+                        'to_balance_usd'  => $split['available'],
+                        'to_profit_usd'   => $split['profit'],
+                        'direction'       => 'in',
                     ]),
                     'status'     => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                DB::table('user_wallets')->where('id', $wallet->id)
-                    ->increment('balance', $allocation->amount_usd);
+                DB::table('user_wallets')->where('id', $wallet->id)->update([
+                    'balance'        => DB::raw('balance + ' . $split['available']),
+                    'profit_balance' => DB::raw('profit_balance + ' . $split['profit']),
+                    'updated_at'     => now(),
+                ]);
 
                 $allocation->update([
                     'status'         => CapitalAllocation::STATUS_RETURNED,
@@ -302,6 +317,11 @@ class GoldDistributeCommand extends Command
 
                 $this->info('Returned ' . number_format($allocation->amount_usd, 2) . ' ' . $currency->code
                     . ' of capital to ' . $user->username . '  (' . $trxId . ')');
+
+                if ($split['profit'] > 0) {
+                    $this->line('  ' . number_format($split['available'], 2) . ' to the available balance, '
+                        . number_format($split['profit'], 2) . ' back to the profit balance it came from.');
+                }
             } catch (\Throwable $e) {
                 DB::rollBack();
                 $this->error('Capital return for ' . $user->username . ' failed: ' . $e->getMessage());

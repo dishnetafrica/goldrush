@@ -57,6 +57,32 @@ class CapitalAllocation extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * How this commitment must be given back when the deal closes.
+     *
+     * Capital taken from the profit balance returns to the profit balance, and
+     * capital taken from the available balance returns there. Returning it all to
+     * one bucket keeps the investor's total right while quietly turning their
+     * earned profit into capital, or the reverse.
+     *
+     * Allocations recorded before the origin was captured have no split, so the
+     * whole amount goes back to the available balance — which is what happened at
+     * the time, and is corrected afterwards by a posted correction rather than by
+     * pretending otherwise here.
+     */
+    public function returnSplit(): array
+    {
+        $fromProfit = (float) $this->locked_from_profit_usd;
+        $fromAvailable = (float) $this->locked_from_balance_usd;
+        $total = (float) $this->amount_usd;
+
+        if (round($fromAvailable + $fromProfit, 8) <= 0) {
+            return ['available' => $total, 'profit' => 0.0];
+        }
+
+        return ['available' => $fromAvailable, 'profit' => $fromProfit];
+    }
+
     /** Capital currently sitting in an open deal for this investor. */
     public static function committedFor(int $userId): float
     {

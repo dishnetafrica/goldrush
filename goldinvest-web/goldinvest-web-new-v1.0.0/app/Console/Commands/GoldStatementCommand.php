@@ -2,23 +2,24 @@
 
 namespace App\Console\Commands;
 
-use App\Constants\PaymentGatewayConst;
-use App\GoldTrading\Models\CapitalAllocation;
-use App\GoldTrading\Models\ProfitDistribution;
+use App\Investor\Ledger\Bucket;
+use App\Investor\Ledger\Flow;
+use App\Investor\Models\LedgerEntry;
+use App\Investor\Services\LedgerReconciler;
 use App\Models\Admin\Currency;
 use App\Models\User;
-use App\Models\UserWallet;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 /**
- * An investor's cash book: every movement in and out of their account, oldest
- * first, with a running balance and a statement of what they can actually
- * withdraw today versus what is committed to open gold deals.
+ * An investor's cash book, read straight off the ledger.
  *
- * Everything here is read from the transactions table the platform already
- * writes; nothing is stored separately, so the cash book cannot drift from the
- * money.
+ * It used to infer direction from the transactions table, which meant guessing
+ * at admin adjustments and having no way to show committed capital at all. Now
+ * it reads what the ledger recorded, so the console, and later the statement PDF
+ * and the dashboard, can only ever say the same thing.
+ *
+ * If the ledger does not reconcile, this says so rather than printing numbers
+ * that look fine.
  */
 class GoldStatementCommand extends Command
 {
@@ -28,17 +29,7 @@ class GoldStatementCommand extends Command
 
     protected $description = 'Print an investor\'s money-in / money-out cash book';
 
-    /** Movements that always add to the spendable balance. */
-    private const IN_BALANCE = [
-        PaymentGatewayConst::TYPEADDMONEY,
-        PaymentGatewayConst::TYPECAPITALRETURN,
-        PaymentGatewayConst::TYPEBONUS,
-        PaymentGatewayConst::TYPEREFERBONUS,
-        PaymentGatewayConst::TYPECOMMISSION,
-        CapitalAllocation::TRX_RELEASE,
-    ];
-
-    public function handle(): int
+    public function handle(LedgerReconciler $reconciler): int
     {
         $user = User::where('username', $this->argument('investor'))
             ->orWhere('email', $this->argument('investor'))
@@ -50,50 +41,39 @@ class GoldStatementCommand extends Command
             return self::FAILURE;
         }
 
-        $currency = Currency::where('default', true)->first();
-        $wallet = UserWallet::where('user_id', $user->id)
-            ->whereHas('currency', fn ($q) => $q->where('code', $currency?->code))
-            ->first();
+        $code = Currency::where('default', true)->value('code') ?? 'USD';
 
-        $code = $currency?->code ?? 'USD';
+        $entries = LedgerEntry::forUser($user->id)->chronological()->get();
 
-        $transactions = DB::table('transactions')
-            ->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)->orWhere('receiver_id', $user->id);
-            })
-            ->orderBy('id')
-            ->get();
+        if ($entries->isEmpty()) {
+            $this->warn('No ledger entries for ' . $user->username . '.');
+            $this->line('Build the ledger first:  php artisan ledger:backfill ' . $user->username);
 
-        $runBalance = 0.0;
-        $runProfit  = 0.0;
-        $totalIn    = 0.0;
-        $totalOut   = 0.0;
-        $rows       = [];
+            return self::SUCCESS;
+        }
 
-        foreach ($transactions as $trx) {
-            $details = json_decode($trx->details ?? 'null');
-            $amount  = (float) $trx->request_amount;
+        $report = $reconciler->forUser($user);
 
-            [$inBalance, $outBalance, $inProfit, $outProfit, $label] =
-                $this->classify($trx, $details, $amount, $user->id, $runBalance);
+        // One printed row per movement, not per leg: an investor thinks of putting
+        // money into a deal as one thing, not as three bucket adjustments.
+        $rows = [];
 
-            $runBalance += $inBalance - $outBalance;
-            $runProfit  += $inProfit - $outProfit;
+        foreach ($entries->groupBy('group_uuid') as $legs) {
+            $first = $legs->first();
+            $last = $legs->last();
 
-            $in  = $inBalance + $inProfit;
-            $out = $outBalance + $outProfit;
-
-            $totalIn  += $in;
-            $totalOut += $out;
+            $in = $legs->where('amount_usd', '>', 0)->sum('amount_usd');
+            $out = abs($legs->where('amount_usd', '<', 0)->sum('amount_usd'));
 
             $rows[] = [
-                date('d M Y', strtotime($trx->created_at)),
-                $label,
-                $in > 0 ? number_format($in, 2) : '',
-                $out > 0 ? number_format($out, 2) : '',
-                number_format($runBalance, 2),
-                number_format($runProfit, 2),
-                $trx->trx_id,
+                $first->occurred_at->format('d M Y'),
+                $first->description,
+                $first->flow === Flow::INTERNAL ? '(internal)' : ($in > 0 ? number_format($in, 2) : ''),
+                $first->flow === Flow::INTERNAL ? '' : ($out > 0 ? number_format($out, 2) : ''),
+                number_format($last->balance_available, 2),
+                number_format($last->balance_profit, 2),
+                number_format($last->balance_committed, 2),
+                $first->reference,
             ];
         }
 
@@ -104,129 +84,58 @@ class GoldStatementCommand extends Command
         $this->line('Cash book — ' . $user->username . ' (' . $user->email . ')   all figures in ' . $code);
         $this->newLine();
 
-        if ($shown === []) {
-            $this->warn('No movements recorded for this investor yet.');
-        } else {
-            if (count($rows) > count($shown)) {
-                $this->line('… ' . (count($rows) - count($shown)) . ' earlier movements not shown');
-            }
-            $this->table(
-                ['Date', 'Movement', 'Money In', 'Money Out', 'Balance', 'Profit', 'Reference'],
-                $shown
-            );
+        if (count($rows) > count($shown)) {
+            $this->line('… ' . (count($rows) - count($shown)) . ' earlier movements not shown');
         }
 
-        $committed = CapitalAllocation::committedFor($user->id);
+        $this->table(
+            ['Date', 'Movement', 'Money In', 'Money Out', 'Available', 'Profit', 'Committed', 'Reference'],
+            $shown
+        );
 
-        $openDeals = CapitalAllocation::with('lot')
-            ->where('user_id', $user->id)
-            ->where('status', CapitalAllocation::STATUS_ALLOCATED)
-            ->where('locked_balance', true)
-            ->get();
+        $position = $report['position'];
+        $totals = $report['totals'];
 
-        $balance = (float) ($wallet->balance ?? 0);
-        $profit  = (float) ($wallet->profit_balance ?? 0);
-
-        $this->line('Total money in   : ' . number_format($totalIn, 2) . ' ' . $code);
-        $this->line('Total money out  : ' . number_format($totalOut, 2) . ' ' . $code);
+        $this->line('Total money in   : ' . number_format($totals['external_in'], 2) . ' ' . $code);
+        $this->line('Total money out  : ' . number_format($totals['external_out'], 2) . ' ' . $code);
+        $this->line('Moved internally : ' . number_format($totals['internal_gross'], 2) . ' ' . $code
+            . '   (between buckets; changes no total)');
         $this->newLine();
-        $this->line('Current balance  : ' . number_format($balance, 2) . ' ' . $code . '   (spendable)');
-        $this->line('Profit balance   : ' . number_format($profit, 2) . ' ' . $code . '   (spendable)');
-        $this->line('In open deals    : ' . number_format($committed, 2) . ' ' . $code . '   (working in gold, not withdrawable)');
-        $this->line('Total position   : ' . number_format($balance + $profit + $committed, 2) . ' ' . $code);
+        $this->line(str_pad(Bucket::label(Bucket::AVAILABLE), 26) . number_format($position['available'], 2) . ' ' . $code);
+        $this->line(str_pad(Bucket::label(Bucket::PROFIT), 26) . number_format($position['profit'], 2) . ' ' . $code);
+        $this->line(str_pad(Bucket::label(Bucket::COMMITTED), 26) . number_format($position['committed'], 2) . ' ' . $code
+            . '   (working in gold, not withdrawable)');
+        $this->line(str_pad('TOTAL POSITION', 26) . number_format($report['total'], 2) . ' ' . $code);
         $this->newLine();
-        $this->info('Can withdraw today: ' . number_format($balance + $profit, 2) . ' ' . $code);
+        $this->info('Can withdraw today: ' . number_format($position['available'] + $position['profit'], 2) . ' ' . $code);
 
-        if ($openDeals->isNotEmpty()) {
+        $openDeals = $entries->where('bucket', Bucket::COMMITTED)
+            ->where('amount_usd', '>', 0)
+            ->whereNotNull('gold_lot_id');
+
+        if ($position['committed'] > 0 && $openDeals->isNotEmpty()) {
             $this->newLine();
-            $this->line('Open deals holding this investor\'s capital:');
+            $this->line('Deals holding this investor\'s capital:');
             $this->table(
-                ['Deal', 'Project', 'Committed', 'Since'],
-                $openDeals->map(fn ($a) => [
-                    $a->lot->lot_code ?? '-',
-                    $a->lot->project_name ?? '-',
-                    number_format($a->amount_usd, 2),
-                    optional($a->allocated_at)->format('d M Y'),
+                ['Deal', 'Committed', 'Since'],
+                $openDeals->map(fn ($e) => [
+                    $e->lot->lot_code ?? '-',
+                    number_format($e->amount_usd, 2),
+                    $e->occurred_at->format('d M Y'),
                 ])->all()
             );
         }
 
-        if ($committed <= 0 && $balance + $profit > 0) {
+        if (! $report['passed']) {
             $this->newLine();
-            $this->warn('None of this money is committed to a deal, so all of it is withdrawable through Money Out.');
+            $this->error('This ledger does not reconcile. Treat the figures above as unverified.');
+            foreach ($report['discrepancies'] as $d) {
+                $this->line('  - ' . $d);
+            }
+
+            return self::FAILURE;
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Works out which way a transaction moved money, and out of which balance.
-     *
-     * @return array{0:float,1:float,2:float,3:float,4:string}
-     *         in-balance, out-balance, in-profit, out-profit, label
-     */
-    private function classify(object $trx, mixed $details, float $amount, int $userId, float $runBalance): array
-    {
-        $type = $trx->type;
-
-        if (in_array($type, self::IN_BALANCE, true)) {
-            return [$amount, 0.0, 0.0, 0.0, $this->label($type)];
-        }
-
-        if ($type === ProfitDistribution::TRX_TYPE) {
-            return [0.0, 0.0, $amount, 0.0, $this->label($type)];
-        }
-
-        if ($type === CapitalAllocation::TRX_LOCK) {
-            $fromBalance = (float) ($details->from_balance_usd ?? $amount);
-            $fromProfit  = (float) ($details->from_profit_usd ?? 0);
-
-            return [0.0, $fromBalance, 0.0, $fromProfit, $this->label($type)];
-        }
-
-        if (in_array($type, [PaymentGatewayConst::TYPEWITHDRAW, PaymentGatewayConst::TYPEMONEYOUT], true)) {
-            $fromProfit = ($details->wallet_type ?? 'c_balance') === 'p_balance';
-
-            return $fromProfit
-                ? [0.0, 0.0, 0.0, $amount, $this->label($type)]
-                : [0.0, $amount, 0.0, 0.0, $this->label($type)];
-        }
-
-        if ($type === PaymentGatewayConst::TYPETRANSFERMONEY) {
-            return (int) $trx->receiver_id === $userId && (int) $trx->user_id !== $userId
-                ? [(float) $trx->receive_amount, 0.0, 0.0, 0.0, 'Transfer in']
-                : [0.0, $amount, 0.0, 0.0, 'Transfer out'];
-        }
-
-        if ($type === PaymentGatewayConst::TYPEADDSUBTRACTBALANCE) {
-            // The admin adjustment stores no direction, but available_balance is the
-            // balance immediately after it, so the sign is recoverable.
-            $added = (float) $trx->available_balance >= $runBalance;
-
-            return $added
-                ? [$amount, 0.0, 0.0, 0.0, 'Admin adjustment (add)']
-                : [0.0, $amount, 0.0, 0.0, 'Admin adjustment (subtract)'];
-        }
-
-        // Anything else is treated as money leaving the balance, which is the safe
-        // reading for orders and payments.
-        return [0.0, $amount, 0.0, 0.0, $this->label($type)];
-    }
-
-    private function label(string $type): string
-    {
-        return match ($type) {
-            PaymentGatewayConst::TYPEADDMONEY      => 'Deposit',
-            PaymentGatewayConst::TYPEWITHDRAW,
-            PaymentGatewayConst::TYPEMONEYOUT      => 'Money out',
-            PaymentGatewayConst::TYPECAPITALRETURN => 'Capital return',
-            PaymentGatewayConst::TYPEBONUS         => 'Bonus',
-            PaymentGatewayConst::TYPEREFERBONUS    => 'Referral bonus',
-            PaymentGatewayConst::TYPECOMMISSION    => 'Commission',
-            ProfitDistribution::TRX_TYPE           => 'Gold deal profit',
-            CapitalAllocation::TRX_LOCK            => 'Into gold deal',
-            CapitalAllocation::TRX_RELEASE         => 'Capital back from deal',
-            default                                => ucfirst(strtolower(str_replace('-', ' ', $type))),
-        };
     }
 }

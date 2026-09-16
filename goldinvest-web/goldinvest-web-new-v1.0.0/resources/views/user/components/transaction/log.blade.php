@@ -40,6 +40,10 @@
             @include('user.components.transaction.gold-capital-return',[
                 'transaction'   => $item,
             ])
+        @elseif ($item->type == \App\Investor\Services\TransactionLedgerMapper::TRX_BUCKET_CORRECTION)
+            @include('user.components.transaction.gold-bucket-correction',[
+                'transaction'   => $item,
+            ])
         @endif
     @empty
         <div class="alert alert-primary text-center">{{ __("No Transactions Found!") }}</div>
