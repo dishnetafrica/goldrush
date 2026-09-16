@@ -6,6 +6,9 @@ use App\Http\Controllers\User\KycController;
 use App\Http\Controllers\User\StatusController;
 use App\Http\Controllers\User\WalletController;
 use App\Http\Controllers\User\HistoryController;
+use App\Http\Controllers\User\InvestorStatementController;
+use App\Http\Controllers\User\InvestorDocumentController;
+use App\Http\Controllers\User\InvestorDealController;
 use App\Http\Controllers\User\ProfileController;
 use App\Http\Controllers\User\AddMoneyController;
 use App\Http\Controllers\User\SecurityController;
@@ -98,6 +101,22 @@ Route::prefix("user")->name("user.")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('submit', 'store')->name('submit');
     });
+    // Investor statements, documents and deal history. All of these read from
+    // the investor ledger; none of them read a wallet balance directly.
+    Route::controller(InvestorStatementController::class)->prefix('statements')->name('statements.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('generate', 'store')->name('generate');
+    });
+    Route::controller(InvestorDocumentController::class)->prefix('documents')->name('documents.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{document}/download', 'download')->name('download');
+        Route::get('receipt/{reference}', 'receipt')->name('receipt')->where('reference', '[A-Z]{2,4}-[0-9]{8}-[0-9]{6}');
+    });
+    Route::controller(InvestorDealController::class)->prefix('deals')->name('deals.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('{lot}', 'show')->name('show');
+    });
+
     Route::controller(HistoryController::class)->prefix("history")->name("history.")->group(function () {
         Route::get('/{slug?}', 'index')->name('transaction')->whereIn('slug', ['add-money-log', 'money-out-log', 'send-money-log']);
         Route::get('orders', 'order')->name('order');

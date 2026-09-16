@@ -59,6 +59,28 @@
                     </li>
                     <li class="sidebar-menu-item sidebar-dropdown">
                         <a href="javascript:void(0)">
+                            <i class="menu-icon fas fa-file-invoice-dollar"></i>
+                            <span class="menu-title">{{ __("My Account") }}</span>
+                        </a>
+                        <ul class="sidebar-submenu">
+                            <li class="sidebar-menu-item">
+                                <a href="{{ setRoute('user.statements.index')}}" class="nav-link">
+                                    <i class="menu-icon las la-ellipsis-h"></i>
+                                    <span class="menu-title">{{ __("Statements") }}</span>
+                                </a>
+                                <a href="{{ setRoute('user.deals.index')}}" class="nav-link">
+                                    <i class="menu-icon las la-ellipsis-h"></i>
+                                    <span class="menu-title">{{ __("My Deals") }}</span>
+                                </a>
+                                <a href="{{ setRoute('user.documents.index')}}" class="nav-link">
+                                    <i class="menu-icon las la-ellipsis-h"></i>
+                                    <span class="menu-title">{{ __("Documents") }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="sidebar-menu-item sidebar-dropdown">
+                        <a href="javascript:void(0)">
                             <i class="menu-icon fas fa-clock"></i>
                             <span class="menu-title">{{ __("History") }}</span>
                         </a>

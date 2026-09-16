@@ -27,6 +27,10 @@ class LedgerRecorder
     /** Money is stored to 8 decimal places; anything smaller is rounding noise. */
     private const EPSILON = 0.000001;
 
+    public function __construct(private readonly SequenceAllocator $sequences)
+    {
+    }
+
     /**
      * Record one movement.
      *
@@ -224,42 +228,9 @@ class LedgerRecorder
         }
     }
 
-    /**
-     * Hands out the next reference for this event type and day, e.g. CAP-20260916-000001.
-     *
-     * The counter row is locked for the rest of the posting transaction, so two
-     * movements posted at the same moment cannot be given the same number.
-     */
+    /** e.g. CAP-20260916-000001 */
     private function nextReference(string $eventType, CarbonInterface $occurredAt): string
     {
-        $prefix = LedgerEvent::referencePrefix($eventType);
-        $day = $occurredAt->toDateString();
-
-        $row = DB::table('ledger_reference_sequences')
-            ->where('prefix', $prefix)
-            ->where('day', $day)
-            ->lockForUpdate()
-            ->first();
-
-        if (! $row) {
-            DB::table('ledger_reference_sequences')->insert([
-                'prefix'      => $prefix,
-                'day'         => $day,
-                'next_number' => 1,
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
-
-            $number = 1;
-        } else {
-            $number = (int) $row->next_number;
-        }
-
-        DB::table('ledger_reference_sequences')
-            ->where('prefix', $prefix)
-            ->where('day', $day)
-            ->update(['next_number' => $number + 1, 'updated_at' => now()]);
-
-        return sprintf('%s-%s-%06d', $prefix, str_replace('-', '', $day), $number);
+        return $this->sequences->next(LedgerEvent::referencePrefix($eventType), $occurredAt);
     }
 }

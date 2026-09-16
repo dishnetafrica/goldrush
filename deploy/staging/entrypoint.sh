@@ -11,7 +11,11 @@ done
 
 # 2. Laravel writable tree on the storage volume
 mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
-         storage/framework/views storage/framework/testing storage/logs bootstrap/cache
+         storage/framework/views storage/framework/testing storage/logs bootstrap/cache \
+         storage/app/private/investor
+# Investor statements and receipts are private by design: never under public/,
+# never served by Apache, only streamed by an authorised controller.
+chmod 700 storage/app/private
 
 # 3. .env: use a bind-mounted file if present, otherwise generate one from the container
 #    environment (EasyPanel "Environment" tab). Container variables always take precedence.

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\MoneyOutController;
 use App\Http\Controllers\Admin\SetupKycController;
 use App\Http\Controllers\Admin\UserCareController;
+use App\Http\Controllers\Admin\InvestorLedgerController;
 use App\Http\Controllers\Admin\AdminCareController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\GoldStockController;
@@ -143,6 +144,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     // User Care Section
+    // Investor ledgers, statements and receipts. Read and issue only: nothing
+    // here can edit a ledger entry or a document.
+    Route::controller(InvestorLedgerController::class)->prefix('investor-ledger')->name('investor.ledger.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('document/{document}/download', 'download')->name('document.download');
+        Route::get('{user}', 'show')->name('show');
+        Route::post('{user}/statement', 'statement')->name('statement');
+        Route::post('{user}/receipts', 'receipts')->name('receipts');
+    });
+
     Route::controller(UserCareController::class)->prefix('users')->name('users.')->group(function () {
         Route::get('index', 'index')->name('index');
         Route::get('active', 'active')->name('active');
