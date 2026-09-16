@@ -156,3 +156,27 @@ php artisan gold:statement bhavin
 
 Prints every movement in and out with a running balance, then separates
 spendable money from money that is currently working inside an open deal.
+
+## Recording any deal
+
+The Boromedina command (`gold:record-boromedina`) replays one specific
+spreadsheet. Every deal after it is recorded with the generic commands:
+
+```bash
+gold:new-lot  BOR-2026-10-02 --project="Boromedina" --location="Juba" \
+              --grams=26 --currency=SSP --price-per-gram=600000 --fx=7500 \
+              --reference-rate="International 142.19 USD/g"
+
+gold:allocate BOR-2026-10-02 --investor=bhavin --amount=2000
+gold:refine   BOR-2026-10-02 --waste-percent=8
+gold:expense  --lot=BOR-2026-10-02 --category=transport --amount=120 --description="Juba to Nairobi"
+gold:sell     BOR-2026-10-02 --all --reference-rate=142.19 --discount=10
+gold:set-terms BOR-2026-10-02 --investor-share=100
+gold:report   BOR-2026-10-02
+gold:distribute BOR-2026-10-02 --dry-run
+gold:distribute BOR-2026-10-02
+```
+
+`gold:sell` takes either an outright `--price-per-gram` or the reference rate
+and the discount that was negotiated off it, because that is how the price is
+actually agreed in the field.
