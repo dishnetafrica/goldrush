@@ -109,7 +109,7 @@ class LedgerFixBucketsCommand extends Command
                 $wallet->refresh();
                 $newBalance = (float) $wallet->balance - $amount;
 
-                $trxId = generate_unique_string('transactions', 'trx_id', 16, 'BC');
+                $trxId = generate_unique_string('transactions', 'trx_id', 16);
 
                 $transactionId = DB::table('transactions')->insertGetId([
                     'type'              => TransactionLedgerMapper::TRX_BUCKET_CORRECTION,

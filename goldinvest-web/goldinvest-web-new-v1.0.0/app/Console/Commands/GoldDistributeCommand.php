@@ -14,14 +14,16 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pays a closed deal's profit to the investors who funded it.
+ * Closes a deal: pays its profit to the investors who funded it, and gives them
+ * back the capital they had committed to it.
  *
- * Capital is not touched: it already sits in the investor's spendable balance as a
- * claim on the company. Only profit is credited, to profit_balance, together with a
- * transactions row so the payment is visible in the investor's own history.
+ * Profit is credited to the profit balance. Committed capital is returned to the
+ * buckets it was taken from — capital that came out of the profit balance goes
+ * back there — so closing a deal never silently turns profit into capital.
+ * Both movements write a transactions row, so the investor can see them.
  *
  * A deal can only be paid once: gold_profit_distributions has a unique key per
- * (lot, investor).
+ * (lot, investor), and capital is only released from allocations still open.
  */
 class GoldDistributeCommand extends Command
 {
@@ -125,7 +127,7 @@ class GoldDistributeCommand extends Command
 
             DB::beginTransaction();
             try {
-                $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GP');
+                $trxId = generate_unique_string('transactions', 'trx_id', 16);
                 $newProfitBalance = (float) $wallet->profit_balance + $line['profit_usd'];
 
                 DB::table('transactions')->insert([
@@ -265,7 +267,7 @@ class GoldDistributeCommand extends Command
 
             DB::beginTransaction();
             try {
-                $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GR');
+                $trxId = generate_unique_string('transactions', 'trx_id', 16);
                 $newBalance = (float) $wallet->balance + $split['available'];
 
                 DB::table('transactions')->insert([

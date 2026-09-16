@@ -178,7 +178,7 @@ class GoldAllocateCommand extends Command
 
         DB::beginTransaction();
         try {
-            $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GC');
+            $trxId = generate_unique_string('transactions', 'trx_id', 16);
             $newBalance = (float) $wallet->balance - $takeFromBalance;
 
             DB::table('transactions')->insert([
