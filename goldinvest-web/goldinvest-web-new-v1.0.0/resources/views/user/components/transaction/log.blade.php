@@ -32,6 +32,14 @@
             @include('user.components.transaction.gold-profit',[
                 'transaction'   => $item,
             ])
+        @elseif ($item->type == \App\GoldTrading\Models\CapitalAllocation::TRX_LOCK)
+            @include('user.components.transaction.gold-capital-lock',[
+                'transaction'   => $item,
+            ])
+        @elseif ($item->type == \App\GoldTrading\Models\CapitalAllocation::TRX_RELEASE)
+            @include('user.components.transaction.gold-capital-return',[
+                'transaction'   => $item,
+            ])
         @endif
     @empty
         <div class="alert alert-primary text-center">{{ __("No Transactions Found!") }}</div>

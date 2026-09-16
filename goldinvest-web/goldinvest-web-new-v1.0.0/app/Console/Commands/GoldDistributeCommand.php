@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\GoldTrading\Models\CapitalAllocation;
 use App\GoldTrading\Models\GoldLot;
 use App\GoldTrading\Models\LotResult;
 use App\GoldTrading\Models\ProfitDistribution;
@@ -97,7 +98,11 @@ class GoldDistributeCommand extends Command
         $this->table(['Investor', 'Capital', 'Profit share', 'Profit', 'State'], $rows);
 
         if ($toPay === []) {
-            $this->info('Nothing left to pay for this deal.');
+            $this->info('No profit left to pay for this deal.');
+
+            if (! $this->option('dry-run')) {
+                $this->releaseCapital($lot, $defaultCurrency);
+            }
 
             return self::SUCCESS;
         }
@@ -189,6 +194,8 @@ class GoldDistributeCommand extends Command
             }
         }
 
+        $this->releaseCapital($lot, $defaultCurrency);
+
         LotResult::updateOrCreate(
             ['gold_lot_id' => $lot->id],
             [
@@ -207,9 +214,98 @@ class GoldDistributeCommand extends Command
             ]
         );
 
-        $this->newLine();
-        $this->info('Capital was not touched. Each investor keeps their capital claim in their spendable balance.');
-
         return self::SUCCESS;
+    }
+
+    /**
+     * Returns capital that was committed to this deal to the investors' spendable
+     * balance, now that the gold has been sold and the money is back in the business.
+     *
+     * Attribution-only allocations are left alone: nothing was ever debited for them,
+     * so the investor's claim never left their balance in the first place.
+     */
+    private function releaseCapital(GoldLot $lot, Currency $currency): void
+    {
+        $allocations = CapitalAllocation::where('gold_lot_id', $lot->id)
+            ->where('status', CapitalAllocation::STATUS_ALLOCATED)
+            ->where('locked_balance', true)
+            ->get();
+
+        $this->newLine();
+
+        if ($allocations->isEmpty()) {
+            $this->line('No committed capital to return: the investors\' capital claims never left their balance.');
+
+            return;
+        }
+
+        foreach ($allocations as $allocation) {
+            $user = User::find($allocation->user_id);
+
+            $wallet = $user
+                ? UserWallet::where('user_id', $user->id)
+                    ->whereHas('currency', fn ($q) => $q->where('code', $currency->code))
+                    ->first()
+                : null;
+
+            if (! $user || ! $wallet) {
+                $this->error('Could not return capital for allocation #' . $allocation->id . '. Skipped.');
+                continue;
+            }
+
+            DB::beginTransaction();
+            try {
+                $trxId = generate_unique_string('transactions', 'trx_id', 16, 'GR');
+                $newBalance = (float) $wallet->balance + $allocation->amount_usd;
+
+                DB::table('transactions')->insert([
+                    'type'              => CapitalAllocation::TRX_RELEASE,
+                    'trx_id'            => $trxId,
+                    'user_type'         => 'USER',
+                    'user_id'           => $user->id,
+                    'wallet_id'         => $wallet->id,
+                    'request_amount'    => $allocation->amount_usd,
+                    'request_currency'  => $currency->code,
+                    'exchange_rate'     => 1,
+                    'percent_charge'    => 0,
+                    'fixed_charge'      => 0,
+                    'total_charge'      => 0,
+                    'total_payable'     => $allocation->amount_usd,
+                    'receive_amount'    => $allocation->amount_usd,
+                    'receiver_type'     => 'USER',
+                    'receiver_id'       => $user->id,
+                    'available_balance' => $newBalance,
+                    'payment_currency'  => $currency->code,
+                    'remark'            => 'Capital returned from gold deal (' . $lot->lot_code . ')',
+                    'details'           => json_encode([
+                        'lot_code'     => $lot->lot_code,
+                        'project'      => $lot->project_name,
+                        'committed_on' => optional($allocation->allocated_at)->toDateString(),
+                        'lock_trx_id'  => $allocation->lock_trx_id,
+                        'direction'    => 'in',
+                    ]),
+                    'status'     => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                DB::table('user_wallets')->where('id', $wallet->id)
+                    ->increment('balance', $allocation->amount_usd);
+
+                $allocation->update([
+                    'status'         => CapitalAllocation::STATUS_RETURNED,
+                    'release_trx_id' => $trxId,
+                    'released_at'    => now()->toDateString(),
+                ]);
+
+                DB::commit();
+
+                $this->info('Returned ' . number_format($allocation->amount_usd, 2) . ' ' . $currency->code
+                    . ' of capital to ' . $user->username . '  (' . $trxId . ')');
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                $this->error('Capital return for ' . $user->username . ' failed: ' . $e->getMessage());
+            }
+        }
     }
 }

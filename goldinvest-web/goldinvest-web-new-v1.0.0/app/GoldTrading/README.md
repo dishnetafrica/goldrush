@@ -106,3 +106,53 @@ The spreadsheet labels C28 "Total Net Profit". It is gross proceeds. Distributin
 of 2,943.31 instead of 943.31 would pay out roughly three times what the deal earned.
 No expenses are recorded for this deal; transport, refining, security and travel will
 reduce the 943.31 further.
+
+## The money lifecycle for one investor
+
+Money moves in four steps, and each one writes a row the investor can see in
+their own transaction history:
+
+```
+1. Deposit            Add Money (or an admin adjustment)   ->  balance +
+2. Into a deal        php artisan gold:allocate            ->  balance -   (committed)
+3. Deal closes        php artisan gold:distribute          ->  balance +   (capital back)
+                                                               profit  +   (their share)
+4. Cash out           Money Out, approved by an admin      ->  balance -
+```
+
+Between step 2 and step 3 that capital is *not* in the investor's spendable
+balance, so Money Out cannot pay it out while it is sitting in gold in the
+field. This is the whole point of committing rather than merely attributing.
+
+### Rolling profit into the next deal
+
+There is no separate "reinvest" concept. Rolling over is just step 2 again,
+pointed at the new lot:
+
+```bash
+# capital only
+php artisan gold:allocate NEW-LOT --investor=bhavin --amount=2000
+
+# capital plus the profit just earned
+php artisan gold:allocate NEW-LOT --investor=bhavin --all --from=both
+```
+
+`--from=balance` (the default) leaves earned profit liquid; `--from=both`
+rolls it in. That is a decision to take with the investor per deal, not a
+platform setting, which is why it is a flag rather than a default.
+
+### Attribution-only allocations
+
+`--no-lock` records that an investor funded a lot without debiting anything.
+Use it only when the cash never passed through the platform — for example
+money handed over in the field. It leaves the investor able to withdraw the
+same money twice, so it is not the default and the command says so.
+
+### Reading an investor's position
+
+```bash
+php artisan gold:statement bhavin
+```
+
+Prints every movement in and out with a running balance, then separates
+spendable money from money that is currently working inside an open deal.
