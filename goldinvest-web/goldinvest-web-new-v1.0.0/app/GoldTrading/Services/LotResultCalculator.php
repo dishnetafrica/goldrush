@@ -87,45 +87,81 @@ class LotResultCalculator
     }
 
     /**
-     * Split a lot's net profit between investors and the company.
-     * The share is a policy decision and must be supplied, never assumed.
-     */
-    public function splitProfit(float $netProfitUsd, float $investorSharePercent): array
-    {
-        $investor = $this->round($netProfitUsd * ($investorSharePercent / 100), 8);
-
-        return [
-            'investor_profit_usd' => $investor,
-            'company_profit_usd'  => $this->round($netProfitUsd - $investor, 8),
-        ];
-    }
-
-    /**
-     * Each investor's slice of the investor pool, in proportion to the capital they funded.
+     * Split a lot's result between its investors and the company, using the terms
+     * agreed for that deal. Terms are never assumed: an investor is paid on their
+     * own agreed percentage if one is recorded, otherwise on the lot's percentage,
+     * otherwise on the override passed in. With none of those, nothing is split.
      *
-     * @return array<int,array{user_id:int,amount_usd:float,share_percent:float,profit_usd:float}>
+     * Two different percentages are at work and must not be confused:
+     *   capital_share_percent - how much of the lot's capital this investor funded
+     *   profit_share_percent  - the agreed cut of the profit their capital earned
+     *
+     * Expense policy:
+     *   deal_before_split - expenses reduce net profit first, so both sides carry
+     *                       them in proportion to the split (the default)
+     *   company_share     - investors are paid out of profit before expenses, and
+     *                       the company absorbs every cost from its own share
+     *
+     * @return array{
+     *   applied_expense_policy:string, profit_pool_usd:float,
+     *   investor_profit_usd:float, company_profit_usd:float,
+     *   investors:array<int,array{user_id:int,capital_usd:float,capital_share_percent:float,profit_share_percent:float,profit_usd:float}>,
+     *   missing_terms:bool
+     * }
      */
-    public function investorBreakdown(GoldLot $lot, float $investorProfitUsd): array
+    public function splitResult(GoldLot $lot, array $result, ?float $overrideSharePercent = null): array
     {
         $lot->loadMissing('allocations');
-        $total = (float) $lot->allocations->sum('amount_usd');
 
-        if ($total <= 0) {
-            return [];
-        }
+        $policy = $lot->expense_policy ?: GoldLot::EXPENSES_DEAL_BEFORE_SPLIT;
 
-        $rows = [];
+        // What the investors' cut is calculated from.
+        $pool = $policy === GoldLot::EXPENSES_COMPANY_SHARE
+            ? (float) $result['gross_profit_usd']
+            : (float) $result['net_profit_usd'];
+
+        $totalCapital = (float) $lot->allocations->sum('amount_usd');
+        $investors = [];
+        $investorTotal = 0.0;
+        $missingTerms = false;
+
         foreach ($lot->allocations as $allocation) {
-            $sharePercent = $this->round(((float) $allocation->amount_usd / $total) * 100, 6);
-            $rows[] = [
-                'user_id'       => (int) $allocation->user_id,
-                'amount_usd'    => (float) $allocation->amount_usd,
-                'share_percent' => $sharePercent,
-                'profit_usd'    => $this->round($investorProfitUsd * ($sharePercent / 100), 8),
+            $capitalShare = $totalCapital > 0
+                ? $this->round(((float) $allocation->amount_usd / $totalCapital) * 100, 6)
+                : 0.0;
+
+            $profitShare = $allocation->share_percent
+                ?? $lot->investor_share_percent
+                ?? $overrideSharePercent;
+
+            if ($profitShare === null) {
+                $missingTerms = true;
+                $profitShare = 0.0;
+            }
+
+            $profit = $this->round($pool * ($capitalShare / 100) * ((float) $profitShare / 100), 8);
+            $investorTotal += $profit;
+
+            $investors[] = [
+                'user_id'                => (int) $allocation->user_id,
+                'capital_usd'            => (float) $allocation->amount_usd,
+                'capital_share_percent'  => $capitalShare,
+                'profit_share_percent'   => (float) $profitShare,
+                'profit_usd'             => $profit,
             ];
         }
 
-        return $rows;
+        $investorTotal = $this->round($investorTotal, 8);
+
+        return [
+            'applied_expense_policy' => $policy,
+            'profit_pool_usd'        => $this->round($pool, 8),
+            'investor_profit_usd'    => $investorTotal,
+            // The company always carries the expenses under company_share.
+            'company_profit_usd'     => $this->round((float) $result['net_profit_usd'] - $investorTotal, 8),
+            'investors'              => $investors,
+            'missing_terms'          => $missingTerms,
+        ];
     }
 
     private function round(float $value, int $precision): float

@@ -11,7 +11,7 @@ class GoldLot extends Model
         'lot_code', 'purchase_date', 'project_name', 'location', 'supplier_name', 'purity_in',
         'gross_grams', 'purchase_currency', 'price_per_gram_local', 'fx_rate_to_usd',
         'price_per_gram_usd', 'total_cost_local', 'total_cost_usd', 'reference_rate_note',
-        'status', 'notes', 'recorded_by',
+        'status', 'investor_share_percent', 'expense_policy', 'terms_note', 'notes', 'recorded_by',
     ];
 
     protected $casts = [
@@ -22,7 +22,11 @@ class GoldLot extends Model
         'price_per_gram_usd'   => 'float',
         'total_cost_local'     => 'float',
         'total_cost_usd'       => 'float',
+        'investor_share_percent' => 'float',
     ];
+
+    public const EXPENSES_DEAL_BEFORE_SPLIT = 'deal_before_split';
+    public const EXPENSES_COMPANY_SHARE     = 'company_share';
 
     public const STATUS_PURCHASED      = 'purchased';
     public const STATUS_PROCESSING     = 'processing';

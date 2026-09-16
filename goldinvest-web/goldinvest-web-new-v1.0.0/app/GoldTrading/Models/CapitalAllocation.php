@@ -16,13 +16,14 @@ class CapitalAllocation extends Model
     protected $table = 'gold_capital_allocations';
 
     protected $fillable = [
-        'gold_lot_id', 'user_id', 'source_trx_id', 'amount_usd',
+        'gold_lot_id', 'user_id', 'source_trx_id', 'amount_usd', 'share_percent',
         'allocated_at', 'status', 'notes', 'recorded_by',
     ];
 
     protected $casts = [
-        'allocated_at' => 'date',
-        'amount_usd'   => 'float',
+        'allocated_at'  => 'date',
+        'amount_usd'    => 'float',
+        'share_percent' => 'float',
     ];
 
     public function lot(): BelongsTo

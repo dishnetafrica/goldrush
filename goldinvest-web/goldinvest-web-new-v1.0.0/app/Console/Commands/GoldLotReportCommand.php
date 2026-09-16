@@ -70,23 +70,32 @@ class GoldLotReportCommand extends Command
                 $this->warn('No expenses are recorded against this lot. Transport, refining, security and travel costs will reduce the net profit shown above.');
             }
 
-            if ($share > 0) {
-                $split = $calculator->splitProfit($r['net_profit_usd'], $share);
+            $split = $calculator->splitResult($lot, $r, $share > 0 ? $share : null);
+
+            if ($split['missing_terms']) {
+                $this->warn('No profit share is recorded for this deal. Set it with: php artisan gold:set-terms ' . $lot->lot_code . ' --investor-share=NN');
+            }
+
+            if ($split['investors'] !== []) {
                 $rows = [];
-                foreach ($calculator->investorBreakdown($lot, $split['investor_profit_usd']) as $line) {
+                foreach ($split['investors'] as $line) {
                     $user = User::find($line['user_id']);
                     $rows[] = [
                         $user?->username ?? ('user #' . $line['user_id']),
-                        $this->m($line['amount_usd']),
-                        $this->n($line['share_percent'], 4) . ' %',
+                        $this->m($line['capital_usd']),
+                        $this->n($line['capital_share_percent'], 2) . ' %',
+                        $this->n($line['profit_share_percent'], 2) . ' %',
                         $this->m($line['profit_usd']),
                     ];
                 }
-                $rows[] = ['<options=bold>Company retains</>', '', '', '<options=bold>' . $this->m($split['company_profit_usd']) . '</>'];
-                $this->line("Profit split at {$share}% to investors:");
-                $this->table(['Investor', 'Capital', 'Share', 'Profit'], $rows);
-            } else {
-                $this->line('Pass --investor-share=<percent> to see how the net profit would be split.');
+                $rows[] = ['<options=bold>Company retains</>', '', '', '', '<options=bold>' . $this->m($split['company_profit_usd']) . '</>'];
+
+                $policy = $split['applied_expense_policy'] === 'company_share'
+                    ? 'investors paid before expenses, company absorbs every cost'
+                    : 'expenses reduce the profit before the split';
+
+                $this->line('Split of ' . $this->m($split['profit_pool_usd']) . ' USD (' . $policy . '):');
+                $this->table(['Investor', 'Capital', 'Capital share', 'Profit share', 'Profit'], $rows);
             }
 
             $this->newLine();

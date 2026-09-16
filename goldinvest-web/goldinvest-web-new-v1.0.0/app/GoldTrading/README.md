@@ -44,20 +44,48 @@ only**: creating an allocation never changes `user_wallets` or writes a `transac
    valued at cost, so a partly sold lot does not overstate earnings.
 4. **Break-even price per gram** is reported so a sale can be judged before it is agreed.
 
+## Deal terms
+
+Terms are negotiated **per deal**, because the split depends on market demand and on
+the source of the gold. They are stored on the lot, and on a single allocation when one
+investor's terms differ from the rest of that deal. Nothing is assumed: if no share is
+recorded, the report says so instead of inventing one.
+
+Two percentages are at work and must not be confused:
+
+| Percentage | Meaning |
+|---|---|
+| `capital_share_percent` | how much of the lot's capital that investor funded |
+| `profit_share_percent` | the agreed cut of the profit their capital earned |
+
+An investor's profit is `pool × capital_share × profit_share`.
+
+`expense_policy` on the lot decides what the pool is:
+
+| Policy | Pool | Effect |
+|---|---|---|
+| `deal_before_split` (default) | net profit, after expenses | both sides carry costs in proportion to the split |
+| `company_share` | gross profit, before expenses | investors are paid first and the company absorbs every cost |
+
+The difference is invisible while expenses are zero and large as soon as they are not.
+On the Boromedina deal at a 60% investor share, 500 USD of costs would leave the company
+177.32 USD under the first policy and **minus 122.68 USD** under the second.
+
 ## Commands
 
 ```bash
 # Record the Boromedina 08-09-2026 deal exactly as the source spreadsheet states it
-php artisan gold:record-boromedina --investor=<username|email> --trx=<transactions.trx_id>
+php artisan gold:record-boromedina --investor=USERNAME --trx=TRXID
 
-# Report any lot: weights, cost, proceeds, real profit, break-even
+# Record the terms agreed for that deal
+php artisan gold:set-terms BOR-2026-09-08 --investor-share=60 --expense-policy=deal_before_split --note="demand in Juba, direct source"
+
+# Give one investor different terms inside the same deal
+php artisan gold:set-terms BOR-2026-09-08 --investor=USERNAME --investor-share=55
+
+# Report any lot: weights, cost, proceeds, real profit, break-even, split
 php artisan gold:lot-report BOR-2026-09-08
-
-# Same report with a profit split, e.g. 60% of net profit to investors
-php artisan gold:lot-report BOR-2026-09-08 --investor-share=60
 ```
-
-The investor share percentage is a policy decision. The module never assumes one.
 
 ## Boromedina 08-09-2026, as recorded
 
