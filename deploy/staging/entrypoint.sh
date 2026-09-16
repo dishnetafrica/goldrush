@@ -41,7 +41,16 @@ chown www-data:www-data .env && chmod 664 .env
 # 4. Rebuild bootstrap/cache/packages.php (composer ran with --no-scripts). Harmless if it fails before the DB exists.
 gosu www-data php artisan package:discover --ansi >/dev/null 2>&1 || true
 
-# 5. Artisan commands (scheduler / worker services) run as www-data; Apache drops privileges by itself
+# 5. Staging convenience: run the queue worker and scheduler inside the web container when
+#    RUN_WORKERS=true. Each runs in a restart loop so a crash does not stop background processing.
+#    Leave RUN_WORKERS unset if you run dedicated scheduler/worker services instead.
+if [ "${RUN_WORKERS:-false}" = "true" ] && [ "$1" != "php" ]; then
+  echo "RUN_WORKERS=true: starting queue worker and scheduler in the background"
+  gosu www-data sh -c 'while true; do php artisan queue:work database --queue=default --sleep=3 --tries=3 --max-time=3600 --timeout=120; sleep 5; done' &
+  gosu www-data sh -c 'while true; do php artisan schedule:work; sleep 5; done' &
+fi
+
+# 6. Artisan commands (dedicated scheduler / worker services) run as www-data; Apache drops privileges itself
 if [ "$1" = "php" ]; then
   exec gosu www-data "$@"
 fi
