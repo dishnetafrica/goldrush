@@ -51,7 +51,11 @@ class LedgerRecorder
                 ->lockForUpdate()
                 ->first();
 
-            $this->assertChronological($last, $occurredAt, $context);
+            [$occurredAt, $reportedAt] = $this->monotonic($last, $occurredAt);
+
+            if ($reportedAt !== null) {
+                $context['meta'] = array_merge($context['meta'] ?? [], ['occurred_at_reported' => $reportedAt]);
+            }
 
             $running = $last
                 ? [
@@ -180,23 +184,27 @@ class LedgerRecorder
     }
 
     /**
-     * The running balances are only meaningful if entries are appended in the
-     * order the money actually moved.
+     * Keeps entry dates from going backwards.
+     *
+     * Order in this ledger is defined by seq, not by the clock, so an entry dated
+     * before the one it follows breaks nothing arithmetically. It does break date
+     * ranges: a statement for a period would show an opening balance that never
+     * existed. Since the causes are mundane — clock skew between the application
+     * and the database, a timezone difference, a transaction backdated by an admin
+     * — refusing the movement would be worse than the problem.
+     *
+     * So the date is clamped to the previous entry's and the date that was
+     * actually claimed is kept in meta, where it can still be seen.
+     *
+     * @return array{0: CarbonInterface, 1: string|null}
      */
-    private function assertChronological(?LedgerEntry $last, CarbonInterface $occurredAt, array $context): void
+    private function monotonic(?LedgerEntry $last, CarbonInterface $occurredAt): array
     {
-        if (! $last) {
-            return;
+        if (! $last || ! $occurredAt->lt($last->occurred_at)) {
+            return [$occurredAt, null];
         }
 
-        if ($occurredAt->lt($last->occurred_at)) {
-            throw new LedgerException(
-                'Refusing to append a movement dated ' . $occurredAt->toDateTimeString()
-                . ' after one dated ' . $last->occurred_at->toDateTimeString()
-                . '. The running balances would stop meaning anything.'
-                . ($context['trx_id'] ?? null ? ' Transaction: ' . $context['trx_id'] : '')
-            );
-        }
+        return [$last->occurred_at->copy(), $occurredAt->toDateTimeString()];
     }
 
     /**

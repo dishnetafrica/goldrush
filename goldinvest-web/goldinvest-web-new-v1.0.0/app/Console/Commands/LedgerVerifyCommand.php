@@ -105,11 +105,10 @@ class LedgerVerifyCommand extends Command
             ])->all()
         );
 
-        $opening = $entries->isEmpty() ? Bucket::zeroed() : [
-            Bucket::AVAILABLE => 0.0,
-            Bucket::PROFIT    => 0.0,
-            Bucket::COMMITTED => 0.0,
-        ];
+        // This report covers the whole of an investor's history, which by
+        // definition starts from nothing. Phase 2's period statements will take
+        // their opening position from the last entry before the period instead.
+        $opening = Bucket::zeroed();
 
         $position = $report['position'];
         $totals = $report['totals'];
