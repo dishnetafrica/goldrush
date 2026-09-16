@@ -28,6 +28,10 @@
             @include('user.components.transaction.refer-bonus',[
                 'transaction'   => $item,
             ])
+        @elseif ($item->type == \App\GoldTrading\Models\ProfitDistribution::TRX_TYPE)
+            @include('user.components.transaction.gold-profit',[
+                'transaction'   => $item,
+            ])
         @endif
     @empty
         <div class="alert alert-primary text-center">{{ __("No Transactions Found!") }}</div>
