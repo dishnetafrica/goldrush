@@ -172,7 +172,7 @@ gold:refine   BOR-2026-10-02 --waste-percent=8
 gold:expense  --lot=BOR-2026-10-02 --category=transport --amount=120 --description="Juba to Nairobi"
 gold:sell     BOR-2026-10-02 --all --reference-rate=142.19 --discount=10
 gold:set-terms BOR-2026-10-02 --investor-share=100
-gold:report   BOR-2026-10-02
+gold:lot-report BOR-2026-10-02
 gold:distribute BOR-2026-10-02 --dry-run
 gold:distribute BOR-2026-10-02
 ```

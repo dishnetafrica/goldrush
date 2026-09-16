@@ -132,6 +132,15 @@ class GoldAllocateCommand extends Command
             default               => CapitalAllocation::FROM_MIXED,
         };
 
+        // Capital committed beyond what the gold actually cost earns nothing: the
+        // profit is made by the grams, not by the size of the float sitting behind
+        // them. Say so before the money is tied up rather than after.
+        $alreadyIn = (float) CapitalAllocation::where('gold_lot_id', $lot->id)
+            ->whereIn('status', [CapitalAllocation::STATUS_ALLOCATED])
+            ->sum('amount_usd');
+        $lotCost = (float) $lot->total_cost_usd;
+        $overFunded = round($alreadyIn + $amount - $lotCost, 2);
+
         $this->line('Deal      : ' . $lot->lot_code . ' — ' . ($lot->project_name ?? ''));
         $this->line('Investor  : ' . $user->username);
         $this->line('Amount    : ' . number_format($amount, 2) . ' ' . $currency->code);
@@ -146,6 +155,21 @@ class GoldAllocateCommand extends Command
         }
         if ($this->option('share') !== null) {
             $this->line('Share     : ' . number_format((float) $this->option('share'), 2) . ' % of this deal\'s profit');
+        }
+
+        $this->newLine();
+        $this->line('This deal cost ' . number_format($lotCost, 2) . ' ' . $currency->code
+            . '; capital committed to it would be ' . number_format($alreadyIn + $amount, 2) . '.');
+
+        if ($overFunded > 0.01) {
+            $this->warn('That is ' . number_format($overFunded, 2) . ' ' . $currency->code
+                . ' more than the gold cost. The extra earns nothing and cannot be withdrawn'
+                . ' until this deal closes.');
+            $this->line('Commit ' . number_format(max(0, $lotCost - $alreadyIn), 2) . ' instead to leave the rest liquid.');
+
+            if (! $this->option('dry-run') && ! $this->confirm('Commit the full amount anyway?', false)) {
+                return self::SUCCESS;
+            }
         }
 
         if ($this->option('dry-run')) {

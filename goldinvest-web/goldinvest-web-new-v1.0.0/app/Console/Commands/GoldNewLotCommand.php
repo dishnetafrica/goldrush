@@ -97,7 +97,7 @@ class GoldNewLotCommand extends Command
         $this->line('  gold:sell     ' . $code . ' --grams=<n> --price-per-gram=<usd>');
         $this->line('  gold:expense  --lot=' . $code . ' --category=transport --amount=<usd> --description="..."');
         $this->line('  gold:set-terms ' . $code . ' --investor-share=<n>');
-        $this->line('  gold:report   ' . $code);
+        $this->line('  gold:lot-report ' . $code);
         $this->line('  gold:distribute ' . $code);
 
         return self::SUCCESS;

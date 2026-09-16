@@ -17,6 +17,9 @@ class GoldLotReportCommand extends Command
                             {lot? : lot code, omit to report every lot}
                             {--investor-share=0 : percentage of net profit owed to investors}';
 
+    /** gold:report is the name people reach for first, so accept it too. */
+    protected $aliases = ['gold:report'];
+
     protected $description = 'Report cost, proceeds and real profit for gold lots';
 
     public function handle(LotResultCalculator $calculator): int

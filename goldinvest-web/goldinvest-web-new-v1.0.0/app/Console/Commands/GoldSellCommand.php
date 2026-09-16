@@ -117,7 +117,7 @@ class GoldSellCommand extends Command
         ]);
 
         $this->newLine();
-        $this->line('Run  gold:report ' . $lot->lot_code . '  to see the profit this leaves.');
+        $this->line('Run  gold:lot-report ' . $lot->lot_code . '  to see the profit this leaves.');
 
         return self::SUCCESS;
     }
