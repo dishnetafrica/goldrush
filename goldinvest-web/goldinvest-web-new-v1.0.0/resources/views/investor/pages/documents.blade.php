@@ -6,7 +6,7 @@
     </div>
     <p class="text-muted">{{ __("Statements and receipts issued to your account. Each document is stored exactly as it was issued and cannot be altered afterwards.") }}</p>
     <div class="table-responsive mt-10">
-        <table class="table">
+        <table class="custom-table">
             <thead>
             <tr>
                 <th>{{ __("Number") }}</th>

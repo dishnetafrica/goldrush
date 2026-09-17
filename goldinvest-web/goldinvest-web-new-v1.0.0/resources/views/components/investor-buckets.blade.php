@@ -1,50 +1,39 @@
 @php use App\Investor\Support\Money; @endphp
-<div class="row mb-20 investor-buckets">
-    @if (! $verified)
-        <div class="col-12">
-            <div class="alert alert-warning mb-0">
-                {{ __("Your account summary is being checked and is temporarily unavailable. Your money is unaffected. Please contact support if this persists.") }}
-            </div>
+@if (! $verified)
+    <div class="alert alert-warning">
+        {{ __("Your account summary is being checked and is temporarily unavailable. Your money is unaffected. Please contact support if this persists.") }}
+    </div>
+@else
+    <div class="dashboard-item-area">
+        <div class="row mb-20-none">
+            @foreach ([
+                ['label' => __('Available Balance'), 'value' => $position['available'], 'icon' => 'fas fa-wallet'],
+                ['label' => __('Profit Balance'), 'value' => $position['profit'], 'icon' => 'fas fa-chart-line'],
+                ['label' => __('Capital in Active Deals'), 'value' => $position['committed'], 'icon' => 'fas fa-coins'],
+                ['label' => __('Total Investor Position'), 'value' => $total, 'icon' => 'fas fa-university'],
+            ] as $card)
+                <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-6 col-sm-6 mb-20">
+                    <div class="dashbord-item">
+                        <div class="dashboard-content">
+                            <span class="sub-title">{{ $card['label'] }}</span>
+                            <h3 class="title">
+                                {{ Money::format($card['value']) }}
+                                <span class="text--base">{{ get_default_currency_code() }}</span>
+                            </h3>
+                        </div>
+                        <div class="dashboard-icon"><i class="{{ $card['icon'] }}"></i></div>
+                        <div class="dash-item-bg bg_img"
+                             data-background="{{ asset('public/frontend/assets/images/banner/banner-bg2.webp') }}"></div>
+                    </div>
+                </div>
+            @endforeach
         </div>
-    @else
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-10">
-            <div class="dashboard-card">
-                <span class="card-title">{{ __("Available Balance") }}</span>
-                <h4 class="amount">{{ Money::format($position['available']) }} <small>USD</small></h4>
-                <span class="card-note">{{ __("Free to withdraw or commit") }}</span>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-10">
-            <div class="dashboard-card">
-                <span class="card-title">{{ __("Profit Balance") }}</span>
-                <h4 class="amount">{{ Money::format($position['profit']) }} <small>USD</small></h4>
-                <span class="card-note">{{ __("Your share of completed deals") }}</span>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-10">
-            <div class="dashboard-card">
-                <span class="card-title">{{ __("Capital in Active Deals") }}</span>
-                <h4 class="amount">{{ Money::format($position['committed']) }} <small>USD</small></h4>
-                <span class="card-note">
-                    {{ __("Working in trading, not withdrawable") }}
-                </span>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-10">
-            <div class="dashboard-card">
-                <span class="card-title">{{ __("Total Investor Position") }}</span>
-                <h4 class="amount">{{ Money::format($total) }} <small>USD</small></h4>
-                <span class="card-note">
-                    {{ __("Available to withdraw now") }}:
-                    {{ Money::format($position['available'] + $position['profit']) }}
-                </span>
-            </div>
-        </div>
-        <div class="col-12">
-            <p class="text-muted mb-0" style="font-size:13px;">
-                {{ __("Your position with the company is a USD account balance. The company trades gold using pooled investor capital; no gold is held in your name.") }}
-                <a href="{{ setRoute('user.statements.index') }}">{{ __("View statements") }}</a>
-            </p>
-        </div>
-    @endif
-</div>
+        <p class="mb-20" style="font-size:13px; opacity:.75;">
+            {{ __("Available to withdraw now") }}:
+            <strong>{{ Money::format($position['available'] + $position['profit']) }} {{ get_default_currency_code() }}</strong>.
+            {{ __("Capital in active deals is owed to you but is working in a trading deal until it closes.") }}
+            {{ __("Your position with the company is a USD account balance; no gold is held in your name.") }}
+            <a href="{{ setRoute('user.statements.index') }}">{{ __("View statements") }}</a>
+        </p>
+    </div>
+@endif

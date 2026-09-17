@@ -8,10 +8,10 @@
 
     <div class="row mt-10">
         <div class="col-lg-6">
-            <div class="card">
+            <div class="custom-card">
                 <div class="card-body">
                     <h5 class="card-title">{{ __("Your financial result") }}</h5>
-                    <table class="table mb-0">
+                    <table class="custom-table mb-0">
                         <tr><td>{{ __("Capital you committed") }}</td>
                             <td class="text-end">{{ Money::format($allocation->amount_usd) }}</td></tr>
                         <tr><td>{{ __("Your agreed profit share") }}</td>
@@ -35,10 +35,10 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card">
+            <div class="custom-card">
                 <div class="card-body">
                     <h5 class="card-title">{{ __("The company's trading result") }}</h5>
-                    <table class="table mb-0">
+                    <table class="custom-table mb-0">
                         <tr><td>{{ __("Purchase date") }}</td>
                             <td class="text-end">{{ $goldLot->purchase_date?->format('d M Y') }}</td></tr>
                         <tr><td>{{ __("Gold purchased") }}</td>
@@ -66,7 +66,7 @@
             <h4 class="title">{{ __("Your account movements for this deal") }}</h4>
         </div>
         <div class="table-responsive">
-            <table class="table">
+            <table class="custom-table">
                 <thead>
                 <tr>
                     <th>{{ __("Date") }}</th>

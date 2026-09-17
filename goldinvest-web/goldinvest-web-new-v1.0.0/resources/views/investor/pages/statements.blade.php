@@ -11,14 +11,14 @@
     @else
         <x-investor-buckets />
 
-        <div class="card mt-10">
+        <div class="custom-card mt-10">
             <div class="card-body">
                 <h5 class="card-title">{{ __("Generate a statement") }}</h5>
                 <form action="{{ setRoute('user.statements.generate') }}" method="POST" class="row g-2 align-items-end">
                     @csrf
                     <div class="col-md-3">
                         <label class="form-label">{{ __("Period") }}</label>
-                        <select name="period" id="statement-period" class="form-control">
+                        <select name="period" id="statement-period" class="form-control form--control">
                             <option value="current">{{ __("Everything to date") }}</option>
                             <option value="month">{{ __("This month") }}</option>
                             <option value="year">{{ __("This year") }}</option>
@@ -27,11 +27,11 @@
                     </div>
                     <div class="col-md-3 statement-custom" style="display:none;">
                         <label class="form-label">{{ __("From") }}</label>
-                        <input type="date" name="from" class="form-control">
+                        <input type="date" name="from" class="form-control form--control">
                     </div>
                     <div class="col-md-3 statement-custom" style="display:none;">
                         <label class="form-label">{{ __("To") }}</label>
-                        <input type="date" name="to" class="form-control">
+                        <input type="date" name="to" class="form-control form--control">
                     </div>
                     <div class="col-md-3">
                         <button type="submit" class="btn btn--base w-100">{{ __("Download PDF") }}</button>
@@ -47,7 +47,7 @@
             <h4 class="title">{{ __("Recent activity") }}</h4>
         </div>
         <div class="table-responsive">
-            <table class="table">
+            <table class="custom-table">
                 <thead>
                 <tr>
                     <th>{{ __("Date") }}</th>
@@ -62,7 +62,7 @@
                 </thead>
                 <tbody>
                 @forelse (array_reverse($statement['movements']) as $m)
-                    <tr @if ($m['internal']) class="text-muted" @endif>
+                    <tr>
                         <td>{{ $m['date']->format('d M Y') }}</td>
                         <td>
                             {{ $m['description'] }}
@@ -92,7 +92,7 @@
         <h4 class="title">{{ __("Issued statements") }}</h4>
     </div>
     <div class="table-responsive">
-        <table class="table">
+        <table class="custom-table">
             <thead>
             <tr>
                 <th>{{ __("Statement") }}</th>

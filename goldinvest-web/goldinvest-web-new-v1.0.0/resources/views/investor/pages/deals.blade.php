@@ -9,7 +9,7 @@
         {{ __("Trading deals your capital has been attributed to. The company buys and sells the gold; your position is a USD balance with the company.") }}
     </p>
     <div class="table-responsive mt-10">
-        <table class="table">
+        <table class="custom-table">
             <thead>
             <tr>
                 <th>{{ __("Deal") }}</th>
@@ -24,7 +24,7 @@
             </thead>
             <tbody>
             @forelse ($deals as $deal)
-                <tr @if (! $deal['ledger_backed']) class="text-muted" @endif>
+                <tr>
                     <td>{{ $deal['reference'] }}</td>
                     <td>{{ $deal['name'] }}</td>
                     <td>{{ $deal['date'] ? \Illuminate\Support\Carbon::parse($deal['date'])->format('d M Y') : '-' }}</td>

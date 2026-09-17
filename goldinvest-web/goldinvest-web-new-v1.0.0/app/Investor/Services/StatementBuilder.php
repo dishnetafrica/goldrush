@@ -364,10 +364,13 @@ class StatementBuilder
     private function periodLabel(?Carbon $start, ?Carbon $end, $within): string
     {
         $first = $within->first()?->occurred_at;
-        $last = $within->last()?->occurred_at;
 
         $from = $start ?? $first;
-        $to = $end ?? $last;
+
+        // With no end date the statement runs to now, so say so. Labelling it with
+        // the last movement's date instead reads oddly beside the INTERIM stamp,
+        // which is there precisely because the period includes today.
+        $to = $end ?? Carbon::now();
 
         if (! $from || ! $to) {
             return 'No activity';
