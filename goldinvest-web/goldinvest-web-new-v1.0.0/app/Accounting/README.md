@@ -61,8 +61,59 @@ It is deliberately **not** Owner's Capital or a Director's Loan. Booking it to
 either would assert something nobody has shown to be true, and a balance sheet
 that balances because of a plug is worse than one that openly says "unresolved".
 
-## Not in 3A
+## Cash and bank (3B)
 
-Cash and bank accounts (3B), purchase/sale/COGS posting (3C), expense workflow
+Each cash box or bank account owns exactly one GL account, created with it under
+1000 (cash) or 1010 (bank). Its balance *is* that GL account's balance — there
+is no second figure anywhere, so there is nothing to reconcile between them.
+
+There is deliberately no cash movements table either. A receipt, a payment or a
+transfer is a journal and nothing else; recording it twice would create two sets
+of books that could disagree.
+
+```bash
+php artisan cash:account "Main Bank" --type=bank --bank="..." --ref=...
+php artisan cash:account --list
+php artisan cash:post receipt  MAIN-BANK --amount=2000 --contra=2000 --memo="..."
+php artisan cash:post payment  MAIN-BANK --amount=120  --contra=6000 --memo="..."
+php artisan cash:post transfer MAIN-BANK --to=CASH-BOX --amount=400
+php artisan bank:statement MAIN-BANK --import=statement.csv --statement-ref=SEP-2026
+php artisan bank:statement MAIN-BANK --suggest
+php artisan bank:statement MAIN-BANK --match=12 --to-line=34
+php artisan bank:reconcile MAIN-BANK --as-at=2026-09-30 --closing-balance=1234.56 --complete
+php artisan cash:selftest
+```
+
+Money the company does not have cannot leave it: a payment that would take an
+account below its floor is refused, and an overdraft has to be permitted on the
+account and stays within its limit.
+
+### Reconciling never changes accounting
+
+Matching a statement line to a journal line records that the two refer to the
+same event. It does not adjust, create or correct a journal, and it refuses to
+match lines whose amounts disagree — a match that papers over a difference hides
+the very thing a reconciliation exists to surface. Fixing a real error is a
+separate, deliberate act: post a correcting journal, then reconcile again.
+
+A reconciliation will not complete while any line is unmatched, or over any
+difference at all. Lines can be set aside, but never silently: an ignored line
+needs a stated reason. Completed reconciliations are immutable, and a later
+check is a new reconciliation, so the history shows what was believed at each
+point rather than only the latest opinion.
+
+The person completing a reconciliation may not be the only person who has seen
+the evidence: if one admin imported the statement, someone else signs it off.
+
+## Not in 3B
+
+Purchase/sale/COGS posting (3C), expense workflow
 (3D), period close (3E), the distribution bridge (3F), reports (3G), historical
-backfill (3H) and admin screens (3I). 3A is the foundation those sit on.
+backfill (3H) and admin screens (3I).
+
+The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
+credit and the two gold purchases remain unexplained until records say otherwise.
+3B gives the company somewhere real for money to have come from and gone to,
+which is what will eventually make those answerable — but it does not answer
+them, and nothing here has been plugged into cash or bank to make anything
+balance.

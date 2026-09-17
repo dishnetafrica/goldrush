@@ -134,6 +134,12 @@ class JournalPoster
                 'reversal_reason'     => $reason,
             ], $actor);
 
+            // Work from what the database holds, not from whatever state the
+            // caller's instance is in. A rejected edit attempt leaves its changes
+            // sitting on the in-memory model, and those would otherwise ride along
+            // with this save and be refused by the immutability guard.
+            $journal->refresh();
+
             // The one sanctioned change to a posted journal: recording that it has
             // been undone. Everything about what it originally said is untouched.
             $journal->status = Journal::REVERSED;

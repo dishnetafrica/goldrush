@@ -29,12 +29,20 @@ final class AccountingPermission
     public const PERIOD_REOPEN   = 'admin.accounting.period.reopen';
     public const REPORT_VIEW     = 'admin.accounting.report.view';
 
+    public const CASH_MANAGE         = 'admin.accounting.cash.manage';
+    public const CASH_POST           = 'admin.accounting.cash.post';
+    public const BANK_IMPORT         = 'admin.accounting.bank.import';
+    public const BANK_MATCH          = 'admin.accounting.bank.match';
+    public const BANK_RECONCILE      = 'admin.accounting.bank.reconcile';
+
     public static function all(): array
     {
         return [
             self::JOURNAL_VIEW, self::JOURNAL_POST, self::JOURNAL_REVERSE,
             self::CHART_MANAGE, self::PERIOD_REVIEW, self::PERIOD_CLOSE,
             self::PERIOD_REOPEN, self::REPORT_VIEW,
+            self::CASH_MANAGE, self::CASH_POST, self::BANK_IMPORT,
+            self::BANK_MATCH, self::BANK_RECONCILE,
         ];
     }
 
