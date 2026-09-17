@@ -36,6 +36,9 @@ final class AccountingPermission
     public const EXPENSE_POST    = 'admin.accounting.expense.post';
     public const EXPENSE_PAY     = 'admin.accounting.expense.pay';
 
+    public const RESULT_VIEW   = 'admin.accounting.result.view';
+    public const RESULT_RECORD = 'admin.accounting.result.record';
+
     public const CASH_MANAGE         = 'admin.accounting.cash.manage';
     public const CASH_POST           = 'admin.accounting.cash.post';
     public const BANK_IMPORT         = 'admin.accounting.bank.import';
@@ -52,6 +55,7 @@ final class AccountingPermission
             self::BANK_MATCH, self::BANK_RECONCILE,
             self::EXPENSE_VIEW, self::EXPENSE_CREATE, self::EXPENSE_SUBMIT,
             self::EXPENSE_APPROVE, self::EXPENSE_POST, self::EXPENSE_PAY,
+            self::RESULT_VIEW, self::RESULT_RECORD,
         ];
     }
 

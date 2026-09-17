@@ -264,9 +264,96 @@ statement will go on saying so; the books must not pretend otherwise.
   count for exactly what they always counted for; they are simply not claimed to
   have been approved by anybody.
 
-## Not in 3D
+## 3E: the realized trading result
 
-Period close (3E), the distribution bridge (3F), reports (3G), historical
+What the company actually made, read out of its own books:
+
+```
+revenue          credits on 4000, per deal
+cost of sales    debits  on 5000, per deal
+                 -------------------------
+gross profit
+ordinary costs   debits on 6000-6899, per deal
+                 -------------------------
+realized result
+```
+
+Nothing is read from a wallet, a distribution, a precomputed investor return or
+a second calculation kept alongside the ledger. If the accounting is wrong the
+answer is wrong in a way somebody can find, rather than quietly right for the
+wrong reason.
+
+6900 FX and 7000 Investor Profit Share are deliberately outside that range. FX
+is a consequence of holding currency rather than of trading gold, and the
+investors' share is a distribution *of* the result — including it would let the
+answer depend on itself.
+
+Reversals need no special handling: a reversing journal posts the mirror of what
+it undoes, so summing every line nets it out.
+
+```bash
+php artisan trading result                       # the company, all periods
+php artisan trading result --period=2026-09
+php artisan trading result BOR-2026-10-02
+php artisan trading expenses-final LOT
+php artisan trading realize LOT
+php artisan trading:selftest
+```
+
+### Interim is not final
+
+Four things happen in order and are not the same event:
+
+| | |
+|---|---|
+| trading complete | the last gram has been sold |
+| costs complete | `expenses_finalised_at` is set, and no recorded cost is still outside the ledger |
+| result recorded | `realized_at` is set: somebody has stood behind the figures |
+| period closed | 3E respects this; it does not implement it |
+
+A result is **final only when all of the first three hold**. Until then it is
+reported with what is holding it up — "Interim: 75.00 of recorded costs have not
+reached the ledger yet" — and recording is refused. A sold-out deal is not final
+merely because the gold has gone.
+
+Declaring costs complete and recording the result are separate acts, under
+separate permissions (`expense.approve` and `result.record`), because collapsing
+them would mean the only check on a final figure was the wish to produce one.
+Once recorded, the figures are immutable: a late cost is posted to the ledger in
+the period it belongs to, and the deal is not reopened.
+
+### Company and deal
+
+Deal results are added up; costs belonging to no deal are shown separately
+rather than pushed into one, so no deal's number depends on how the overheads
+were shared out. The report proves the addition lost nothing: every posting on
+4000 and 5000 must be attributable to a deal, or it says it does not reconcile.
+
+### FX: not required here, and not invented
+
+4100 and 6900 exist in the chart of accounts, but **no FX realization rule is
+implemented anywhere**, and 3E does not add one. It does not need one: every
+stored amount is already USD (`amount_usd`, `gross_proceeds_usd`,
+`total_cost_usd`) and every journal posts in USD, so a realized result is a sum
+of USD figures.
+
+An FX rule becomes necessary the moment an amount is *settled* at a rate
+different from the one it was *booked* at — a receivable on 1300 collected later,
+or a payable on 2100 paid at a new rate. Nothing in the system does that yet. If
+it ever does, the difference belongs on 4100 or 6900 and needs a formal decision
+first; it must not be absorbed into a trading result.
+
+### Historical deals
+
+`BOR-2026-09-08` and `BOR-2026-10-02` report a realized result of 0.00 and a
+stage of `historical`, with the reason stated. That is correct and deliberate:
+the ledger holds nothing for them, and their recorded 943.31 and 861.06632 are
+attribution records rather than accounting until the backfill establishes where
+the money came from. Recording a realized result for either is refused.
+
+## Not in 3E
+
+Period close, the distribution bridge (3F), reports (3G), historical
 backfill (3H) and admin screens (3I).
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
