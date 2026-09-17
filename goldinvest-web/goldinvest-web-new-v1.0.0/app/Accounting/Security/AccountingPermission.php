@@ -29,6 +29,13 @@ final class AccountingPermission
     public const PERIOD_REOPEN   = 'admin.accounting.period.reopen';
     public const REPORT_VIEW     = 'admin.accounting.report.view';
 
+    public const EXPENSE_VIEW    = 'admin.accounting.expense.view';
+    public const EXPENSE_CREATE  = 'admin.accounting.expense.create';
+    public const EXPENSE_SUBMIT  = 'admin.accounting.expense.submit';
+    public const EXPENSE_APPROVE = 'admin.accounting.expense.approve';
+    public const EXPENSE_POST    = 'admin.accounting.expense.post';
+    public const EXPENSE_PAY     = 'admin.accounting.expense.pay';
+
     public const CASH_MANAGE         = 'admin.accounting.cash.manage';
     public const CASH_POST           = 'admin.accounting.cash.post';
     public const BANK_IMPORT         = 'admin.accounting.bank.import';
@@ -43,6 +50,8 @@ final class AccountingPermission
             self::PERIOD_REOPEN, self::REPORT_VIEW,
             self::CASH_MANAGE, self::CASH_POST, self::BANK_IMPORT,
             self::BANK_MATCH, self::BANK_RECONCILE,
+            self::EXPENSE_VIEW, self::EXPENSE_CREATE, self::EXPENSE_SUBMIT,
+            self::EXPENSE_APPROVE, self::EXPENSE_POST, self::EXPENSE_PAY,
         ];
     }
 

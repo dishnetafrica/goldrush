@@ -51,6 +51,13 @@ return [
             'throw'      => false,
         ],
 
+        'expense-private' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/private/expenses'),
+            'visibility' => 'private',
+            'throw'      => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

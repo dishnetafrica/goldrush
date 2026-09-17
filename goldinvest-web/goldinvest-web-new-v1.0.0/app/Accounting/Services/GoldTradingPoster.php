@@ -43,8 +43,22 @@ class GoldTradingPoster
         'security'   => '6030',
         'travel'     => '6040',
         'commission' => '6050',
+        'packaging'  => '6060',
+        'storage'    => '6070',
         'operating'  => '6100',
         'other'      => '6100',
+    ];
+
+    /** Where a cost of this kind is recognised when it is not capitalised. */
+    public static function accountFor(string $category): string
+    {
+        return self::EXPENSE_ACCOUNTS[$category] ?? self::EXPENSE_ACCOUNTS['other'];
+    }
+
+    /** The only states from which a cost may reach the general ledger. */
+    private const POSTABLE_STATES = [
+        TradingExpense::STATUS_APPROVED,
+        TradingExpense::STATUS_RECORDED,
     ];
 
     public const PAYABLE    = '2100';
@@ -284,13 +298,45 @@ class GoldTradingPoster
         });
     }
 
-    /** A cost of doing the deal: an expense of the period, not part of the gold. */
+    /**
+     * A cost of doing business, into the books.
+     *
+     * Where it lands depends on what the cost was for, and that is decision D4.
+     * A cost incurred to bring gold to a saleable condition is part of what the
+     * gold cost, so it is debited to inventory and becomes part of the lot's
+     * cost basis. Every other cost — transport, security, travel, the office —
+     * is an expense of the period it falls in.
+     *
+     * The credit side says whether the money has actually gone. Paid from a
+     * cash or bank account, that account is credited and the expense is settled.
+     * With no account named, accrued expenses payable is credited: the cost is
+     * recognised but the company still owes it, which is a different fact and
+     * worth being able to see.
+     */
     public function expense(TradingExpense $expense, ?CashAccount $from = null, array $context = [], ?Admin $actor = null): Journal
     {
         AccountingPermission::assert($actor, AccountingPermission::JOURNAL_POST);
 
+        // Everything below is decided from what the database holds, not from
+        // whatever state the caller's instance is in. An edit the immutability
+        // guard refused leaves its changes on the in-memory model: the record is
+        // safe, but an amount read off that model is not, and this is the one
+        // place where a wrong amount becomes a journal.
+        if ($expense->exists) {
+            $expense->refresh();
+        }
+
         if ($expense->journal_id !== null) {
-            throw new PostingRefused('Expense #' . $expense->id . ' has already been posted.');
+            throw new PostingRefused('Expense ' . $expense->label() . ' has already been posted.');
+        }
+
+        $status = $expense->status ?? TradingExpense::STATUS_DRAFT;
+
+        if (! in_array($status, self::POSTABLE_STATES, true)) {
+            throw new PostingRefused(
+                'Expense ' . $expense->label() . ' is ' . $status . ' and cannot be posted. '
+                . 'A cost reaches the general ledger only once somebody has approved it.'
+            );
         }
 
         if ($expense->lot) {
@@ -300,23 +346,28 @@ class GoldTradingPoster
         $amount = round((float) $expense->amount_usd, 8);
 
         if ($amount <= self::EPSILON) {
-            throw new PostingRefused('Expense #' . $expense->id . ' has no amount to post.');
+            throw new PostingRefused('Expense ' . $expense->label() . ' has no amount to post.');
         }
 
-        $account = self::EXPENSE_ACCOUNTS[$expense->category] ?? self::EXPENSE_ACCOUNTS['other'];
+        $debit = $expense->capitalised
+            ? $this->capitalisationAccountFor($expense)
+            : self::accountFor($expense->category);
+
         $date = $context['date'] ?? $expense->expense_date->toDateString();
 
         if ($from) {
             $this->cash->assertCanPay($from, $amount, $date);
         }
 
-        return DB::transaction(function () use ($expense, $account, $amount, $from, $date, $context, $actor) {
+        return DB::transaction(function () use ($expense, $debit, $amount, $from, $date, $context, $actor) {
             $journal = $this->poster->post([
                 [
-                    'account'     => $account,
+                    'account'     => $debit,
                     'debit'       => $amount,
                     'gold_lot_id' => $expense->gold_lot_id,
-                    'memo'        => $expense->description,
+                    'memo'        => $expense->capitalised
+                        ? 'capitalised into the gold: ' . $expense->description
+                        : $expense->description,
                 ],
                 [
                     'account' => $from ? $from->glAccount : self::PAYABLE,
@@ -330,13 +381,65 @@ class GoldTradingPoster
                 'source_id'   => $expense->id,
             ], $actor);
 
-            $expense->forceFill([
+            $expense->forceFill(array_filter([
                 'journal_id'                => $journal->id,
+                'status'                    => TradingExpense::STATUS_POSTED,
+                'posted_by'                 => $actor?->id,
+                'posted_at'                 => now(),
+                'capitalised_into'          => $expense->capitalised ? $debit : null,
                 'paid_from_cash_account_id' => $from?->id,
-            ])->save();
+
+                // Paying at the moment of posting settles it there and then.
+                // Posting against payable leaves it outstanding, deliberately.
+                'payment_status'     => $from ? TradingExpense::PAYMENT_PAID : TradingExpense::PAYMENT_UNPAID,
+                'payment_journal_id' => $from ? $journal->id : null,
+                'paid_by'            => $from ? $actor?->id : null,
+                'paid_at'            => $from ? now() : null,
+            ], fn ($v) => $v !== null))->save();
 
             return $journal;
         });
+    }
+
+    /**
+     * Which inventory account a capitalised cost is added to.
+     *
+     * It follows the gold: while the lot is still unrefined the cost joins it
+     * there, and once refined it joins the refined cost. A cost cannot be
+     * capitalised into gold that has already been sold, because there is no
+     * inventory left for it to attach to — the cost would sit in an asset
+     * account nothing will ever relieve. That is an expense, and saying so is
+     * better than quietly stranding it.
+     */
+    public function capitalisationAccountFor(TradingExpense $expense): string
+    {
+        $lot = $expense->lot;
+
+        if (! $lot) {
+            throw new PostingRefused(
+                'Expense ' . $expense->label() . ' is marked as capitalised but names no deal. '
+                . 'A cost can only be added to the cost of gold that exists.'
+            );
+        }
+
+        $this->assertNotHistorical($lot);
+
+        $refined = $this->inventory->glBalance($lot, InventoryValuation::REFINED);
+        $unrefined = $this->inventory->glBalance($lot, InventoryValuation::UNREFINED);
+
+        if ($refined > self::EPSILON) {
+            return InventoryValuation::REFINED;
+        }
+
+        if ($unrefined > self::EPSILON) {
+            return InventoryValuation::UNREFINED;
+        }
+
+        throw new PostingRefused(
+            'There is no inventory left for ' . $lot->lot_code . ' to capitalise '
+            . Money::format((float) $expense->amount_usd) . ' into; the gold has been sold or was never posted. '
+            . 'A cost arriving after the gold has gone is an expense of this period, not part of what the gold cost.'
+        );
     }
 
     /**

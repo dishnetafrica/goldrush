@@ -4,6 +4,7 @@ namespace App\GoldTrading\Services;
 
 use App\GoldTrading\Models\GoldLot;
 use App\GoldTrading\Models\GoldSale;
+use App\GoldTrading\Models\TradingExpense;
 
 /**
  * Works out what a gold lot actually earned.
@@ -52,12 +53,23 @@ class LotResultCalculator
 
         // Every cost booked against this lot or its sales that is not already
         // part of what the gold cost.
+        //
+        // Capitalised costs are excluded because they are in the cost basis
+        // above; counting them here as well would charge the same money twice,
+        // which is exactly what decision D4 forbids. Rejected and reversed
+        // claims are excluded because they are not costs at all. Everything
+        // else counts from the moment it is recorded: the workflow governs
+        // whether a cost may be paid and posted, not whether it was incurred,
+        // and a deal's result should not flatter itself while the paperwork
+        // catches up.
         $saleIds = $lot->sales->pluck('id')->all();
         $expensesUsd = $basis['expensed_processing_usd']
-            + (float) $lot->expenses->sum('amount_usd')
-            + (float) \App\GoldTrading\Models\TradingExpense::query()
+            + (float) $lot->expenses->filter(fn (TradingExpense $e) => $e->countsAsDealExpense())->sum('amount_usd')
+            + (float) TradingExpense::query()
                 ->whereIn('gold_sale_id', $saleIds ?: [0])
                 ->whereNull('gold_lot_id')
+                ->where('capitalised', false)
+                ->whereNotIn('status', [TradingExpense::STATUS_REJECTED, TradingExpense::STATUS_REVERSED])
                 ->sum('amount_usd');
 
         $grossProfitUsd = $this->round($proceedsUsd - $cogsUsd, 8);
@@ -88,6 +100,7 @@ class LotResultCalculator
             'roi_percent'                   => $roiPercent,
             'break_even_price_per_gram_usd' => $breakEven,
             'capitalised_cost_usd'          => $basis['capitalised_cost_usd'],
+            'capitalised_expenses_usd'      => $basis['capitalised_expenses_usd'],
             'remaining_value_at_cost_usd'   => $basis['remaining_value_at_cost_usd'],
             'allocated_capital_usd'         => $this->round((float) $lot->allocations->sum('amount_usd'), 8),
         ];

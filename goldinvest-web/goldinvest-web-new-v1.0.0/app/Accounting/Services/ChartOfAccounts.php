@@ -69,6 +69,9 @@ class ChartOfAccounts
             ['6030', 'Security', AccountType::EXPENSE, null, 'Guarding and secure movement'],
             ['6040', 'Travel', AccountType::EXPENSE, null, 'Travel attributable to a deal'],
             ['6050', 'Brokerage and Commission', AccountType::EXPENSE, null, 'Fees paid to intermediaries'],
+            ['6060', 'Packaging and Handling', AccountType::EXPENSE, null,
+                'Packaging not capitalised into inventory'],
+            ['6070', 'Storage and Vaulting', AccountType::EXPENSE, null, 'Holding gold securely'],
             ['6100', 'Operating Expenses', AccountType::EXPENSE, null, 'Running costs not attributable to a deal'],
             ['6900', 'FX Loss', AccountType::EXPENSE, null, 'Losses on currency movement'],
 

@@ -34,6 +34,11 @@ class AccountingSelfTestCommand extends Command
 
     public function handle(JournalPoster $poster, TrialBalance $trialBalance): int
     {
+        // Artisan resolves a command once per process, so a suite invoked twice in
+        // the same run would otherwise report the first run's results alongside
+        // the second's and count them all.
+        $this->results = [];
+
         $this->line('Accounting self-test (Phase 3A)');
         $this->line(str_repeat('-', 60));
 

@@ -151,7 +151,7 @@ cost. Two systems that must agree are given one thing to read rather than two
 formulas to keep in step.
 
 ```
-cost basis        = purchase cost + capitalised processing charges
+cost basis        = purchase cost + capitalised processing + capitalised expenses
 cost per gram     = cost basis / refined grams (after loss)
 cost of sales     = cost per gram x grams sold
 inventory held    = cost basis - cost of sales
@@ -172,10 +172,101 @@ posted by ordinary working. Reconstructing it means deciding where money nobody
 has explained came from, which needs evidence rather than a default, and belongs
 to 3H.
 
-## Not in 3C
+## 3D: the company expense workflow
 
-Expense workflow
-(3D), period close (3E), the distribution bridge (3F), reports (3G), historical
+A cost passes through a life before it becomes money:
+
+```
+draft -> submitted -> approved -> posted -> paid
+                   -> rejected
+```
+
+Each step records who took it and when. A rejection records why. A draft is
+freely editable and can be thrown away, because nobody has relied on it yet;
+everything after that is fixed, and the workflow's own steps are the only things
+that may change it.
+
+There is no second expense table and no second expense ledger. The lifecycle
+columns were added to `gold_trading_expenses`, and posting hands the expense to
+`GoldTradingPoster`, which hands its journal to `JournalPoster`. An expense
+cannot reach the books by a route that skips the rules the books are kept by.
+
+```bash
+php artisan gold:expense --lot=LOT --category=transport --amount=120 \
+    --description="Juba to Nairobi" --payee="Hauler Ltd" --invoice=INV-4471
+php artisan expense submit   EXP-20260917-000001
+php artisan expense approve  EXP-20260917-000001
+php artisan expense post     EXP-20260917-000001 --from=MAIN-BANK
+php artisan expense pay      EXP-20260917-000001 --from=MAIN-BANK
+php artisan expense show     EXP-20260917-000001
+php artisan expense:selftest
+```
+
+### Posting and paying are different facts
+
+| Posted with | Entry | Payment status |
+|---|---|---|
+| `--from=<account>` | Dr expense / Cr cash or bank | paid there and then |
+| nothing | Dr expense / Cr 2100 Accrued Expenses Payable | unpaid: the company owes it |
+
+An expense posted against payable is a real cost that has not been paid, and
+collapsing the two would hide what the company owes. Paying it later is
+Dr 2100 / Cr cash, through the 3B cash system, touching no expense account.
+
+Period-close accrual mechanics are not built here. 2100 is used because an
+unpaid cost has to be credited somewhere truthful today, not because 3D closes
+periods; that is 3E.
+
+### Capitalised costs (decision D4)
+
+A cost that prepares gold for sale is debited to inventory, not to an expense
+account, and `LotCostBasis` reads it back:
+
+```
+capitalised cost -> Dr 1100 or 1110 (whichever holds the lot's cost) / Cr cash or 2100
+```
+
+Three rules keep it from being counted twice:
+
+- a capitalised cost never appears in `LotResultCalculator`'s expenses;
+- an ordinary cost never enters the cost basis;
+- a capitalised cost enters the basis only once **posted**, because until then
+  the general ledger does not hold it in inventory either.
+
+A cost cannot be capitalised into gold that has already been sold. There is no
+inventory left for it to attach to, so it would sit in an asset account nothing
+will ever relieve. It is refused, and the message says to treat it as an expense
+of the period.
+
+### Corrections
+
+| Situation | Route |
+|---|---|
+| Posted, unpaid, not owed after all | `expense reverse` — the mirror journal; both entries stay |
+| Posted and paid, but booked to the wrong account | `expense reclassify` — Dr right / Cr wrong, cash untouched |
+| Posted and paid, supplier refunding | record the refund as a receipt |
+
+A paid expense is never reversed. The money left the account and the bank
+statement will go on saying so; the books must not pretend otherwise.
+
+### Controls
+
+- Nobody may approve a claim they submitted. Waiving that needs a Super Admin
+  and a recorded reason, exactly as bank reconciliation sign-off does
+  (`ACCOUNTING_ALLOW_SELF_APPROVAL`, false by default).
+- Posting the same expense twice hands back the journal it already has. Paying
+  it twice hands back the payment. The same supplier invoice cannot be claimed
+  twice, at the database and with a message naming the claim that has it.
+- Evidence is stored on the private `expense-private` disk under `storage/`,
+  hashed when filed, never under the web root, and read only through
+  `ExpenseEvidenceStore`, where the permission check cannot be forgotten.
+- Costs entered before this workflow existed are marked `recorded`. They still
+  count for exactly what they always counted for; they are simply not claimed to
+  have been approved by anybody.
+
+## Not in 3D
+
+Period close (3E), the distribution bridge (3F), reports (3G), historical
 backfill (3H) and admin screens (3I).
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor

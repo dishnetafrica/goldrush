@@ -41,6 +41,11 @@ class CashSelfTestCommand extends Command
         JournalPoster $poster,
         TrialBalance $trialBalance,
     ): int {
+        // Artisan resolves a command once per process, so a suite invoked twice in
+        // the same run would otherwise report the first run's results alongside
+        // the second's and count them all.
+        $this->results = [];
+
         $this->line('Cash and bank self-test (Phase 3B)');
         $this->line(str_repeat('-', 60));
 

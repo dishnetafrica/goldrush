@@ -41,6 +41,11 @@ class InvestorSelfTestCommand extends Command
         DocumentIssuer $issuer,
         LedgerRecorder $recorder,
     ): int {
+        // Artisan resolves a command once per process, so a suite invoked twice in
+        // the same run would otherwise report the first run's results alongside
+        // the second's and count them all.
+        $this->results = [];
+
         $user = User::where('username', $this->argument('user'))
             ->orWhere('email', $this->argument('user'))
             ->first();

@@ -32,7 +32,8 @@ class LotCostBasis
     /**
      * @return array{
      *   gross_grams:float, waste_grams:float, refined_grams:float,
-     *   purchase_cost_usd:float, capitalised_cost_usd:float, cost_basis_usd:float,
+     *   purchase_cost_usd:float, capitalised_cost_usd:float,
+     *   capitalised_processing_usd:float, capitalised_expenses_usd:float, cost_basis_usd:float,
      *   cost_per_refined_gram_usd:float, sold_grams:float, remaining_grams:float,
      *   cost_of_goods_sold_usd:float, remaining_value_at_cost_usd:float,
      *   expensed_processing_usd:float
@@ -40,7 +41,7 @@ class LotCostBasis
      */
     public function forLot(GoldLot $lot): array
     {
-        $lot->loadMissing(['processings', 'sales']);
+        $lot->loadMissing(['processings', 'sales', 'expenses']);
 
         $grossGrams = (float) $lot->gross_grams;
         $wasteGrams = (float) $lot->processings->sum('waste_grams');
@@ -48,8 +49,18 @@ class LotCostBasis
 
         // Only processing charges marked as capitalised become part of the gold's
         // cost. Anything else a processor charged for stays an expense.
-        $capitalised = (float) $lot->processings->where('cost_capitalised', true)->sum('cost_usd');
+        $capitalisedProcessing = (float) $lot->processings->where('cost_capitalised', true)->sum('cost_usd');
         $expensedProcessing = (float) $lot->processings->where('cost_capitalised', false)->sum('cost_usd');
+
+        // Costs claimed through the expense workflow and marked as capitalised
+        // join the cost of the gold too, but only once they have been posted.
+        // Until then the general ledger does not hold them in inventory either,
+        // and this basis agreeing with the ledger is the whole point of it.
+        $capitalisedExpenses = (float) $lot->expenses
+            ->filter(fn ($expense) => $expense->countsInCostBasis())
+            ->sum('amount_usd');
+
+        $capitalised = round($capitalisedProcessing + $capitalisedExpenses, 8);
 
         $purchaseCost = (float) $lot->total_cost_usd;
         $costBasis = round($purchaseCost + $capitalised, 8);
@@ -71,7 +82,9 @@ class LotCostBasis
             'waste_grams'                 => $wasteGrams,
             'refined_grams'               => $refinedGrams,
             'purchase_cost_usd'           => round($purchaseCost, 8),
-            'capitalised_cost_usd'        => round($capitalised, 8),
+            'capitalised_cost_usd'        => $capitalised,
+            'capitalised_processing_usd'  => round($capitalisedProcessing, 8),
+            'capitalised_expenses_usd'    => round($capitalisedExpenses, 8),
             'cost_basis_usd'              => $costBasis,
             'cost_per_refined_gram_usd'   => $costPerRefinedGram,
             'sold_grams'                  => $soldGrams,

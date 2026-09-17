@@ -53,6 +53,11 @@ class GoldAccountingSelfTestCommand extends Command
         JournalPoster $poster,
         TrialBalance $trialBalance,
     ): int {
+        // Artisan resolves a command once per process, so a suite invoked twice in
+        // the same run would otherwise report the first run's results alongside
+        // the second's and count them all.
+        $this->results = [];
+
         $this->line('Gold trading accounting self-test (Phase 3C)');
         $this->line(str_repeat('-', 60));
 
@@ -305,6 +310,9 @@ class GoldAccountingSelfTestCommand extends Command
     private function expense(GoldTradingPoster $gold, GoldLot $lot, CashAccount $bank): void
     {
         $expense = TradingExpense::create([
+            // Costs reach the general ledger only once approved (Phase 3D), so a
+            // fixture that is about posting starts from there.
+            'status'         => TradingExpense::STATUS_APPROVED,
             'expense_date'   => $this->date,
             'category'       => 'transport',
             'description'    => 'Self-test transport',
