@@ -12,6 +12,7 @@ class TradingExpense extends Model
     protected $fillable = [
         'expense_date', 'category', 'description', 'currency_code', 'amount_local',
         'fx_rate_to_usd', 'amount_usd', 'gold_lot_id', 'gold_sale_id', 'recorded_by',
+        'journal_id', 'paid_from_cash_account_id',
     ];
 
     protected $casts = [

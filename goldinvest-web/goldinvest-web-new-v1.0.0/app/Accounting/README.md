@@ -105,9 +105,62 @@ point rather than only the latest opinion.
 The person completing a reconciliation may not be the only person who has seen
 the evidence: if one admin imported the statement, someone else signs it off.
 
-## Not in 3B
+## Gold trading (3C)
 
-Purchase/sale/COGS posting (3C), expense workflow
+```
+purchase   Dr 1100 Inventory-Unrefined   Cr cash / 2100 Payable
+refining   Dr 1110 Inventory-Refined     Cr 1100          (cost carried across)
+           Dr 1110                       Cr cash          (charge capitalised, D4)
+sale       Dr cash / 1300 Receivable     Cr 4000 Revenue
+           Dr 5000 Cost of Gold Sold     Cr 1110          (all in one journal)
+expense    Dr 6000-6100 by category      Cr cash / 2100
+```
+
+**Wastage posts no journal.** Grams vanish; dollars do not. The cost attaches to
+fewer grams, which is why a lot bought at 80.00/g carries 86.96/g after an 8%
+loss. Booking the lost grams as a write-off would charge that cost twice - once
+through the raised unit cost and again as an expense.
+
+A sale posts revenue and cost of sales in **one** journal. Splitting them would
+let a sale exist with no cost against it, which is how a set of books starts
+flattering itself.
+
+Selling more grams than a lot holds is refused: inventory cannot go negative.
+A sale that empties a lot takes whatever cost is left rather than a rounded
+multiple, so nothing is stranded in inventory.
+
+```bash
+php artisan gold:post purchase <LOT> --from=<cash account>
+php artisan gold:post refining <processing id> --from=<cash account>
+php artisan gold:post sale <SALE-CODE> --to=<cash account>
+php artisan gold:post expense <expense id> --from=<cash account>
+php artisan gold:inventory
+php artisan gold:accounting-selftest
+```
+
+### A known disagreement, reported rather than hidden
+
+Directly attributable processing costs are capitalised into inventory here
+(decision D4). `LotResultCalculator`, which produces the investor-facing deal
+result, treats them as a deal expense instead.
+
+While those charges are zero the two agree exactly, which is the case for both
+existing deals. When they are not, net profit on a fully sold lot is the same
+either way, but the split between cost of sales and expenses differs - and so
+does the value of anything still unsold. `InventoryValuation::divergence()`
+computes the gap and `gold:inventory` prints it. It has to be resolved before a
+period is closed on a lot carrying such a charge.
+
+### Historical deals are refused
+
+A lot whose profit was already distributed before the ledger existed cannot be
+posted by ordinary working. Reconstructing it means deciding where money nobody
+has explained came from, which needs evidence rather than a default, and belongs
+to 3H.
+
+## Not in 3C
+
+Expense workflow
 (3D), period close (3E), the distribution bridge (3F), reports (3G), historical
 backfill (3H) and admin screens (3I).
 

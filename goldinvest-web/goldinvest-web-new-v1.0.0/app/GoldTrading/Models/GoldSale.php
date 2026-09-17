@@ -12,7 +12,7 @@ class GoldSale extends Model
         'sale_code', 'gold_lot_id', 'sale_date', 'buyer_name', 'location', 'grams_sold',
         'reference_rate_usd', 'discount_percent', 'price_basis', 'price_per_gram_usd',
         'gross_proceeds_usd', 'settlement_currency', 'fx_rate_to_usd', 'gross_proceeds_local',
-        'status', 'notes', 'recorded_by',
+        'status', 'notes', 'recorded_by', 'journal_id', 'proceeds_to_cash_account_id',
     ];
 
     protected $casts = [

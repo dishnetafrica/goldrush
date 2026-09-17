@@ -44,7 +44,7 @@ class CashService
         AccountingPermission::assert($actor, AccountingPermission::CASH_POST);
         $this->assertPositive($amount);
         $this->assertActive($account);
-        $this->assertSufficient($account, $amount, $context['date'] ?? null);
+        $this->assertCanPay($account, $amount, $context["date"] ?? null);
 
         return $this->poster->post([
             ['account' => $toAccountCode, 'debit' => $amount, 'memo' => $context['memo'] ?? null],
@@ -70,7 +70,7 @@ class CashService
 
         $this->assertActive($from);
         $this->assertActive($to);
-        $this->assertSufficient($from, $amount, $context['date'] ?? null);
+        $this->assertCanPay($from, $amount, $context["date"] ?? null);
 
         if ($from->currency_code !== $to->currency_code) {
             throw new PostingRefused(
@@ -107,7 +107,7 @@ class CashService
      * An overdraft is a real arrangement rather than an accident, so it has to
      * be permitted on the account and is limited to the agreed amount.
      */
-    private function assertSufficient(CashAccount $account, float $amount, ?string $date): void
+    public function assertCanPay(CashAccount $account, float $amount, ?string $date = null): void
     {
         $balance = $account->balance($date);
         $after = round($balance - $amount, 8);

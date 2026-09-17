@@ -27,6 +27,7 @@ class BankReconciliation extends Model
         'ledger_balance', 'difference', 'lines_total', 'lines_matched',
         'lines_unmatched', 'lines_ignored', 'status', 'performed_by',
         'completed_by', 'completed_at', 'notes', 'snapshot',
+        'sod_exception', 'sod_exception_reason',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class BankReconciliation extends Model
         'ledger_balance'           => 'float',
         'difference'               => 'float',
         'completed_at'             => 'datetime',
+        'sod_exception'            => 'boolean',
         'snapshot'                 => 'array',
     ];
 

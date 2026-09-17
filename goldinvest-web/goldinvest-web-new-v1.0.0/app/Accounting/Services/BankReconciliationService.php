@@ -236,8 +236,14 @@ class BankReconciliationService
      * statement — a reconciliation signed off by the only pair of eyes that has
      * seen the evidence is not a control.
      */
-    public function complete(CashAccount $account, string $asAt, float $statementClosingBalance, ?Admin $actor = null, ?string $notes = null): BankReconciliation
-    {
+    public function complete(
+        CashAccount $account,
+        string $asAt,
+        float $statementClosingBalance,
+        ?Admin $actor = null,
+        ?string $notes = null,
+        ?string $sodExceptionReason = null,
+    ): BankReconciliation {
         AccountingPermission::assert($actor, AccountingPermission::BANK_RECONCILE);
 
         $summary = $this->summarise($account, $asAt, $statementClosingBalance);
@@ -258,7 +264,7 @@ class BankReconciliationService
             );
         }
 
-        $this->assertSegregation($account, $asAt, $actor);
+        $exception = $this->resolveSegregation($account, $asAt, $actor, $sodExceptionReason);
 
         return DB::transaction(fn () => BankReconciliation::create([
             'reference'                 => $this->sequences->next('BRC', Carbon::parse($asAt)),
@@ -276,6 +282,8 @@ class BankReconciliationService
             'completed_by'              => $actor?->id,
             'completed_at'              => Carbon::now(),
             'notes'                     => $notes,
+            'sod_exception'             => $exception !== null,
+            'sod_exception_reason'      => $exception,
             'snapshot'                  => [
                 'statement_closing' => $summary['statement_closing'],
                 'ledger_balance'    => $summary['ledger_balance'],
@@ -286,14 +294,23 @@ class BankReconciliationService
     }
 
     /**
-     * The person completing must not be the only person involved. Skipped when
-     * there is no actor, which is the console, and when nobody is recorded as
-     * having imported the statement.
+     * The person completing must not be the only person who has seen the
+     * evidence.
+     *
+     * A single-admin environment cannot satisfy that, so the rule can be
+     * relaxed by configuration. Relaxing it is not the same as removing it:
+     * only a Super Admin may take the exception, a reason is required, and the
+     * reason is returned so it can be recorded against the reconciliation. The
+     * control is waived visibly rather than bypassed.
+     *
+     * @return string|null the exception reason when one was taken
      */
-    private function assertSegregation(CashAccount $account, string $asAt, ?Admin $actor): void
+    private function resolveSegregation(CashAccount $account, string $asAt, ?Admin $actor, ?string $reason): ?string
     {
+        // No actor is the console, where reaching a shell is already a greater
+        // privilege than any of these grants.
         if ($actor === null) {
-            return;
+            return null;
         }
 
         $importers = BankStatementLine::where('cash_account_id', $account->id)
@@ -302,15 +319,33 @@ class BankReconciliationService
             ->pluck('imported_by')
             ->unique();
 
-        if ($importers->isEmpty()) {
-            return;
+        $selfSignoff = $importers->count() === 1 && (int) $importers->first() === (int) $actor->id;
+
+        if ($importers->isEmpty() || ! $selfSignoff) {
+            return null;
         }
 
-        if ($importers->count() === 1 && (int) $importers->first() === (int) $actor->id) {
+        if (! config('accounting.reconciliation.allow_self_signoff', false)) {
             throw new AccountingException(
                 'The statement was imported by the same person completing the reconciliation. '
-                . 'Somebody else must sign it off.'
+                . 'Somebody else must sign it off, or enable ACCOUNTING_ALLOW_SELF_SIGNOFF for a '
+                . 'single-admin environment.'
             );
         }
+
+        // Relaxing the rule does not relax who may take the exception.
+        if (! $actor->isSuperAdmin()) {
+            throw new AccountingException(
+                'Only a Super Admin may sign off a reconciliation they imported the statement for.'
+            );
+        }
+
+        if (trim((string) $reason) === '') {
+            throw new AccountingException(
+                'Signing off your own reconciliation needs a reason, which is recorded against it.'
+            );
+        }
+
+        return trim($reason);
     }
 }

@@ -13,6 +13,7 @@ class GoldLot extends Model
         'price_per_gram_usd', 'total_cost_local', 'total_cost_usd', 'reference_rate_note',
         'status', 'investor_share_percent', 'expense_policy', 'terms_note', 'notes', 'recorded_by',
         'expenses_finalised_at', 'expenses_finalised_by',
+        'purchase_journal_id', 'paid_from_cash_account_id',
     ];
 
     protected $casts = [

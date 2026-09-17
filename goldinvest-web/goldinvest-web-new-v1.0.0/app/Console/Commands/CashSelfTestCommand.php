@@ -66,6 +66,7 @@ class CashSelfTestCommand extends Command
             $this->statementMatching($bank, $cash, $bankAccount);
             $this->reconciliation($bank, $bankAccount);
             $this->permissions($accounts, $cash, $cashBox);
+            $this->segregationOfDuties($bank, $cash, $bankAccount);
             $this->trialBalance($trialBalance);
         } catch (\Throwable $e) {
             $this->check('Unexpected failure', false, $e->getMessage());
@@ -363,6 +364,107 @@ class CashSelfTestCommand extends Command
             && ! AccountingPermission::allows($stranger, AccountingPermission::CASH_POST),
             'both refused for an admin holding no grants'
         );
+    }
+
+    /**
+     * The segregation-of-duties rule, strict by default and waivable only
+     * deliberately.
+     *
+     * Each case runs against a fresh bank account so one test's statement lines
+     * cannot decide another's outcome.
+     */
+    private function segregationOfDuties(BankReconciliationService $bank, CashService $cash, CashAccount $unused): void
+    {
+        $superAdmin = Admin::all()->first(fn (Admin $a) => $a->isSuperAdmin());
+
+        if (! $superAdmin) {
+            $this->check('Segregation of duties', false, 'no Super Admin to test with');
+
+            return;
+        }
+
+        $strict = config('accounting.reconciliation.allow_self_signoff', false);
+
+        $this->check(
+            'Default configuration is strict',
+            $strict === false,
+            'accounting.reconciliation.allow_self_signoff defaults to false'
+        );
+
+        // Strict: the importer may not sign off their own reconciliation.
+        config(['accounting.reconciliation.allow_self_signoff' => false]);
+        [$account, $balance] = $this->accountForSod($bank, $cash, 'ST-SOD1', $superAdmin);
+
+        $this->check(
+            'Strict mode: importer cannot sign off their own reconciliation',
+            $this->refused(
+                fn () => $bank->complete($account, $this->date, $balance, $superAdmin),
+                AccountingException::class
+            ),
+            'refused for the admin who imported the statement'
+        );
+
+        // Relaxed, but only for a Super Admin and only with a reason.
+        config(['accounting.reconciliation.allow_self_signoff' => true]);
+
+        $this->check(
+            'Relaxed mode still needs a reason',
+            $this->refused(
+                fn () => $bank->complete($account, $this->date, $balance, $superAdmin),
+                AccountingException::class
+            ),
+            'a waived control without a stated reason is refused'
+        );
+
+        $stranger = new Admin();
+        $stranger->id = -1;
+        $stranger->username = 'selftest-not-super';
+
+        $this->check(
+            'Relaxed mode does not admit an unauthorised admin',
+            $this->refused(fn () => $bank->complete($account, $this->date, $balance, $stranger)),
+            'a non Super Admin is still refused with the exception enabled'
+        );
+
+        $record = $bank->complete(
+            $account, $this->date, $balance, $superAdmin,
+            'Single-admin staging', 'Only one administrator operates this environment'
+        );
+
+        $this->check(
+            'Relaxed mode: authorised Super Admin may sign off',
+            $record->status === 'completed' && $record->reconciles(),
+            $record->reference . ' completed by ' . $superAdmin->username
+        );
+
+        $this->check(
+            'Waived control is recorded in the audit trail',
+            $record->sod_exception === true
+            && $record->sod_exception_reason === 'Only one administrator operates this environment'
+            && (int) $record->completed_by === (int) $superAdmin->id
+            && $record->completed_at !== null,
+            'exception, reason, actor and timestamp all recorded'
+        );
+
+        config(['accounting.reconciliation.allow_self_signoff' => $strict]);
+    }
+
+    /** A bank account whose statement was imported by one named admin. */
+    private function accountForSod(BankReconciliationService $bank, CashService $cash, string $code, Admin $importer): array
+    {
+        $service = app(CashAccountService::class);
+        $account = $service->create(['name' => 'SoD ' . $code, 'type' => CashAccount::TYPE_BANK, 'code' => $code]);
+
+        $cash->receipt($account, 900.00, '2000', $this->ctx('Self-test SoD receipt'));
+        $journalLine = JournalLine::where('account_id', $account->gl_account_id)->latest('id')->first();
+
+        $result = $bank->import($account, [
+            ['date' => $this->date, 'description' => 'SoD deposit', 'amount' => 900.00, 'external_ref' => $code . '-1'],
+        ], $code . '-STMT', $importer);
+
+        $bank->match($result['lines'][0], $journalLine, $importer);
+
+        return [$account->fresh(), $account->fresh()->balance()];
     }
 
     /** 16. The trial balance still balances after everything above. */

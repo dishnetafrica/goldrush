@@ -9,7 +9,8 @@ class GoldProcessing extends Model
 {
     protected $fillable = [
         'gold_lot_id', 'processed_at', 'method', 'input_grams', 'waste_grams',
-        'waste_percent', 'output_grams', 'output_purity', 'cost_usd', 'notes', 'recorded_by',
+        'waste_percent', 'output_grams', 'output_purity', 'cost_usd', 'cost_capitalised',
+        'notes', 'recorded_by', 'journal_id', 'paid_from_cash_account_id',
     ];
 
     protected $casts = [
