@@ -294,6 +294,8 @@ class StatementBuilder
                     ? (float) $allocation->amount_usd
                     : null,
                 'ledger_backed' => $ledgerBacked,
+                'expenses_finalised' => (bool) $lot?->expensesFinalised(),
+                'expense_status' => $lot?->expenseStatusLabel(),
                 'status'        => $this->dealStatus($allocation, $distribution, $ledgerBacked),
             ];
         })->all();

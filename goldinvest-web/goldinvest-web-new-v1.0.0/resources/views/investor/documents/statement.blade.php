@@ -167,7 +167,7 @@
 </div>
 
 @if (count($statement['deals']))
-    <h2>Trading activity</h2>
+    <h2>Recorded trading activity</h2>
     <table class="grid">
         <thead>
         <tr>
@@ -179,6 +179,7 @@
             <th class="num" style="width:8%">Share</th>
             <th class="num" style="width:12%">Your profit</th>
             <th style="width:13%">Status</th>
+            <th style="width:14%">Expenses</th>
         </tr>
         </thead>
         <tbody>
@@ -192,6 +193,7 @@
                 <td class="num">{{ $d['investor_share'] !== null ? number_format($d['investor_share'], 0) . '%' : '-' }}</td>
                 <td class="num">{{ $d['investor_profit'] !== null ? Money::format($d['investor_profit']) : '-' }}</td>
                 <td>{{ $d['status'] }}</td>
+                <td>{{ $d['expense_status'] ?? '-' }}</td>
             </tr>
         @endforeach
         </tbody>
@@ -202,6 +204,13 @@
             recorded before capital commitments moved through your balances, so they do not appear as movements
             in the activity above. They are shown for completeness of your trading history.
         </p>
+    @endif
+    @if (collect($statement['deals'])->contains(fn ($d) => ! $d['expenses_finalised']))
+        <div class="note">
+            <strong>Expense capture.</strong> Expenses are recorded as they are incurred. The results above
+            reflect expenses recorded to date and may change when additional deal expenses are recorded.
+            Deals marked as having expenses pending are not final.
+        </div>
     @endif
     <p class="muted">
         Gold quantities describe what the company bought and sold in each deal. They are shown so you can see

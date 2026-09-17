@@ -37,7 +37,12 @@
         <div class="col-lg-6">
             <div class="custom-card">
                 <div class="card-body">
-                    <h5 class="card-title">{{ __("The company's trading result") }}</h5>
+                    <h5 class="card-title">{{ __("The company's recorded trading result") }}</h5>
+                    <p class="mb-2" style="font-size:13px; opacity:.8;">
+                        <span class="badge {{ $goldLot->expensesFinalised() ? 'badge--success' : 'badge--warning' }}">
+                            {{ $goldLot->expenseStatusLabel() }}
+                        </span>
+                    </p>
                     <table class="custom-table mb-0">
                         <tr><td>{{ __("Purchase date") }}</td>
                             <td class="text-end">{{ $goldLot->purchase_date?->format('d M Y') }}</td></tr>
@@ -53,9 +58,15 @@
                             <td class="text-end">{{ Money::format($result['cost_of_goods_sold_usd']) }}</td></tr>
                         <tr><td>{{ __("Deal expenses") }}</td>
                             <td class="text-end">{{ Money::format($result['expenses_usd']) }}</td></tr>
-                        <tr class="fw-bold"><td>{{ __("Net trading profit") }}</td>
+                        <tr class="fw-bold"><td>{{ __("Net trading profit (recorded to date)") }}</td>
                             <td class="text-end">{{ Money::format($result['net_profit_usd']) }}</td></tr>
                     </table>
+                    @unless ($goldLot->expensesFinalised())
+                        <p class="mt-2 mb-0" style="font-size:13px; opacity:.85;">
+                            <strong>{{ __("Expense capture") }}:</strong>
+                            {{ __("Expenses are recorded as they are incurred. This figure reflects expenses recorded to date and may change when additional deal expenses are recorded.") }}
+                        </p>
+                    @endunless
                 </div>
             </div>
         </div>

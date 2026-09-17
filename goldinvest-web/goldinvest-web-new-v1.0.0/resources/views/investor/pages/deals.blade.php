@@ -7,6 +7,8 @@
     </div>
     <p class="text-muted">
         {{ __("Trading deals your capital has been attributed to. The company buys and sells the gold; your position is a USD balance with the company.") }}
+        <br>
+        {{ __("Deal results shown are recorded results. Expenses are recorded as they are incurred, so a deal marked as having expenses pending may still change.") }}
     </p>
     <div class="table-responsive mt-10">
         <table class="custom-table">
@@ -35,6 +37,9 @@
                         {{ $deal['status'] }}
                         @if (! $deal['ledger_backed'])
                             <br><small>{{ __("Predates the account ledger") }}</small>
+                        @endif
+                        @if ($deal['expense_status'])
+                            <br><small>{{ $deal['expense_status'] }}</small>
                         @endif
                     </td>
                     <td class="text-end">
