@@ -15,6 +15,10 @@ use App\GoldTrading\Models\GoldSale;
  */
 class LotResultCalculator
 {
+    public function __construct(private readonly LotCostBasis $costBasis)
+    {
+    }
+
     /**
      * @return array<string,float|string> keys: gross_grams, waste_grams, refined_grams,
      *  sold_grams, remaining_grams, cost_usd, cost_per_refined_gram_usd, cost_of_goods_sold_usd,
@@ -25,29 +29,31 @@ class LotResultCalculator
     {
         $lot->loadMissing(['processings', 'sales', 'expenses', 'allocations']);
 
-        $grossGrams = (float) $lot->gross_grams;
-        $wasteGrams = (float) $lot->processings->sum('waste_grams');
-        $refinedGrams = $this->round($grossGrams - $wasteGrams, 4);
+        // What the gold cost is decided in one place, so that this result and the
+        // company's general ledger cannot disagree about it (decision D4).
+        $basis = $this->costBasis->forLot($lot);
+
+        $grossGrams = $basis['gross_grams'];
+        $wasteGrams = $basis['waste_grams'];
+        $refinedGrams = $basis['refined_grams'];
+        $soldGrams = $basis['sold_grams'];
+        $remainingGrams = $basis['remaining_grams'];
 
         $settledSales = $lot->sales->where('status', GoldSale::STATUS_SETTLED);
-        $soldGrams = (float) $settledSales->sum('grams_sold');
-        $remainingGrams = $this->round($refinedGrams - $soldGrams, 4);
 
-        $costUsd = (float) $lot->total_cost_usd;
-
-        // Cost basis per gram AFTER refining loss. 2,000 USD over 23 g is 86.96/g, not 80/g.
-        $costPerRefinedGram = $refinedGrams > 0 ? $this->round($costUsd / $refinedGrams, 8) : 0.0;
-
-        // Only the gold actually sold is charged to profit. Unsold grams stay as inventory.
-        $cogsUsd = $soldGrams > 0
-            ? ($remainingGrams <= 0 ? $costUsd : $this->round($costPerRefinedGram * $soldGrams, 8))
-            : 0.0;
+        // The cost of the gold, including the charges incurred to make it
+        // saleable. Those charges are in inventory now, so they must not be
+        // counted again below as expenses.
+        $costUsd = $basis['cost_basis_usd'];
+        $costPerRefinedGram = $basis['cost_per_refined_gram_usd'];
+        $cogsUsd = $basis['cost_of_goods_sold_usd'];
 
         $proceedsUsd = (float) $settledSales->sum('gross_proceeds_usd');
 
-        // Refining charges plus every expense booked against this lot or its sales.
+        // Every cost booked against this lot or its sales that is not already
+        // part of what the gold cost.
         $saleIds = $lot->sales->pluck('id')->all();
-        $expensesUsd = (float) $lot->processings->sum('cost_usd')
+        $expensesUsd = $basis['expensed_processing_usd']
             + (float) $lot->expenses->sum('amount_usd')
             + (float) \App\GoldTrading\Models\TradingExpense::query()
                 ->whereIn('gold_sale_id', $saleIds ?: [0])
@@ -81,7 +87,8 @@ class LotResultCalculator
             'net_profit_usd'                => $netProfitUsd,
             'roi_percent'                   => $roiPercent,
             'break_even_price_per_gram_usd' => $breakEven,
-            'remaining_value_at_cost_usd'   => $this->round($costPerRefinedGram * max($remainingGrams, 0), 8),
+            'capitalised_cost_usd'          => $basis['capitalised_cost_usd'],
+            'remaining_value_at_cost_usd'   => $basis['remaining_value_at_cost_usd'],
             'allocated_capital_usd'         => $this->round((float) $lot->allocations->sum('amount_usd'), 8),
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Accounting\Services;
 
 use App\GoldTrading\Models\GoldLot;
 use App\GoldTrading\Models\GoldSale;
+use App\GoldTrading\Services\LotCostBasis;
 use App\GoldTrading\Services\LotResultCalculator;
 use Illuminate\Support\Facades\DB;
 
@@ -16,56 +17,41 @@ use Illuminate\Support\Facades\DB;
  * twice, once through the raised unit cost and again as a write-off.
  *
  * Directly attributable processing costs are added to the cost of the gold
- * rather than expensed (decision D4). That is where this and
- * LotResultCalculator part company: the calculator treats processing charges as
- * a deal expense. The two agree while those charges are zero, and divergence()
- * reports the gap rather than letting it pass unnoticed.
+ * rather than expensed (decision D4). Both this and LotResultCalculator read
+ * that cost from LotCostBasis, so they cannot disagree about it; divergence()
+ * remains as a standing check that they are still wired to the same source.
  */
 class InventoryValuation
 {
     public const UNREFINED = '1100';
     public const REFINED   = '1110';
 
-    public function __construct(private readonly LotResultCalculator $calculator)
-    {
+    public function __construct(
+        private readonly LotCostBasis $costBasis,
+        private readonly LotResultCalculator $calculator,
+    ) {
     }
 
     public function forLot(GoldLot $lot): array
     {
-        $lot->loadMissing(['processings', 'sales']);
-
-        $grossGrams = (float) $lot->gross_grams;
-        $wasteGrams = (float) $lot->processings->sum('waste_grams');
-        $refinedGrams = round($grossGrams - $wasteGrams, 4);
-
-        $capitalised = (float) $lot->processings->where('cost_capitalised', true)->sum('cost_usd');
-        $costBasis = round((float) $lot->total_cost_usd + $capitalised, 8);
-
-        $costPerRefinedGram = $refinedGrams > 0 ? round($costBasis / $refinedGrams, 8) : 0.0;
-
-        $settled = $lot->sales->where('status', GoldSale::STATUS_SETTLED);
-        $soldGrams = (float) $settled->sum('grams_sold');
-        $remainingGrams = round($refinedGrams - $soldGrams, 4);
-
-        // When a lot is sold out, the last sale carries whatever cost is left
-        // rather than a rounded multiple, so nothing is stranded in inventory.
-        $cogs = $soldGrams > 0
-            ? ($remainingGrams <= 0 ? $costBasis : round($costPerRefinedGram * $soldGrams, 8))
-            : 0.0;
+        // The same cost basis the investor-facing deal result uses. Two systems
+        // that must agree are given one thing to read rather than two formulas
+        // to keep in step.
+        $basis = $this->costBasis->forLot($lot);
 
         return [
             'lot'                   => $lot,
-            'gross_grams'           => $grossGrams,
-            'waste_grams'           => $wasteGrams,
-            'refined_grams'         => $refinedGrams,
-            'sold_grams'            => $soldGrams,
-            'remaining_grams'       => $remainingGrams,
-            'purchase_cost_usd'     => round((float) $lot->total_cost_usd, 8),
-            'capitalised_cost_usd'  => round($capitalised, 8),
-            'cost_basis_usd'        => $costBasis,
-            'cost_per_refined_gram' => $costPerRefinedGram,
-            'cogs_to_date_usd'      => $cogs,
-            'remaining_value_usd'   => round($costBasis - $cogs, 8),
+            'gross_grams'           => $basis['gross_grams'],
+            'waste_grams'           => $basis['waste_grams'],
+            'refined_grams'         => $basis['refined_grams'],
+            'sold_grams'            => $basis['sold_grams'],
+            'remaining_grams'       => $basis['remaining_grams'],
+            'purchase_cost_usd'     => $basis['purchase_cost_usd'],
+            'capitalised_cost_usd'  => $basis['capitalised_cost_usd'],
+            'cost_basis_usd'        => $basis['cost_basis_usd'],
+            'cost_per_refined_gram' => $basis['cost_per_refined_gram_usd'],
+            'cogs_to_date_usd'      => $basis['cost_of_goods_sold_usd'],
+            'remaining_value_usd'   => $basis['remaining_value_at_cost_usd'],
             'gl_unrefined_usd'      => $this->glBalance($lot, self::UNREFINED),
             'gl_refined_usd'        => $this->glBalance($lot, self::REFINED),
         ];
@@ -92,13 +78,11 @@ class InventoryValuation
     }
 
     /**
-     * Where this valuation and the investor-facing deal result disagree, and why.
+     * Proves this valuation and the investor-facing deal result still agree.
      *
-     * Capitalised processing costs sit in inventory here and in expenses there.
-     * While they are zero the two agree exactly. When they are not, the deal's
-     * net profit is the same either way once a lot is fully sold, but the split
-     * between cost of goods sold and expenses differs — and so does the value of
-     * anything still unsold.
+     * They read the same cost basis, so a difference here means something has
+     * been rewired to compute its own — the failure this check exists to catch
+     * before it reaches a period close.
      */
     public function divergence(GoldLot $lot): array
     {
@@ -115,8 +99,8 @@ class InventoryValuation
             'agrees'               => abs($cogsGap) <= 0.00000001,
             'reason'               => abs($cogsGap) <= 0.00000001
                 ? null
-                : 'Processing costs are capitalised into inventory here and treated as deal expenses by '
-                  . 'LotResultCalculator. Align the two before closing a period on this lot.',
+                : 'Cost of sales differs between the ledger and the deal result. They are meant to read '
+                  . 'the same cost basis, so one of them has been rewired. Resolve before closing a period.',
         ];
     }
 }

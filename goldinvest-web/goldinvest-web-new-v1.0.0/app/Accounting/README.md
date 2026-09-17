@@ -138,18 +138,32 @@ php artisan gold:inventory
 php artisan gold:accounting-selftest
 ```
 
-### A known disagreement, reported rather than hidden
+### One cost basis, read by both (decision D4)
 
-Directly attributable processing costs are capitalised into inventory here
-(decision D4). `LotResultCalculator`, which produces the investor-facing deal
-result, treats them as a deal expense instead.
+Costs incurred to bring gold to a saleable condition are part of what the gold
+cost. They go into inventory, and having gone there they are never counted as an
+expense again.
 
-While those charges are zero the two agree exactly, which is the case for both
-existing deals. When they are not, net profit on a fully sold lot is the same
-either way, but the split between cost of sales and expenses differs - and so
-does the value of anything still unsold. `InventoryValuation::divergence()`
-computes the gap and `gold:inventory` prints it. It has to be resolved before a
-period is closed on a lot carrying such a charge.
+`App\GoldTrading\Services\LotCostBasis` computes this once. Both the general
+ledger and `LotResultCalculator` read it, so the company's books and the
+investor-facing deal result cannot hold different opinions about what a lot
+cost. Two systems that must agree are given one thing to read rather than two
+formulas to keep in step.
+
+```
+cost basis        = purchase cost + capitalised processing charges
+cost per gram     = cost basis / refined grams (after loss)
+cost of sales     = cost per gram x grams sold
+inventory held    = cost basis - cost of sales
+```
+
+Only charges marked `cost_capitalised` enter inventory. Transport, security,
+travel and the rest do not prepare inventory and stay expenses, flowing through
+the expense workflow to their own accounts.
+
+`InventoryValuation::divergence()` remains as a standing check that both sides
+are still wired to the same source; a difference now means something has been
+rewired to compute its own, which `gold:inventory` reports.
 
 ### Historical deals are refused
 

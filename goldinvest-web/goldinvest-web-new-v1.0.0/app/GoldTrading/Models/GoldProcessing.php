@@ -19,7 +19,8 @@ class GoldProcessing extends Model
         'waste_grams'   => 'float',
         'waste_percent' => 'float',
         'output_grams'  => 'float',
-        'cost_usd'      => 'float',
+        'cost_usd'         => 'float',
+        'cost_capitalised' => 'boolean',
     ];
 
     public function lot(): BelongsTo

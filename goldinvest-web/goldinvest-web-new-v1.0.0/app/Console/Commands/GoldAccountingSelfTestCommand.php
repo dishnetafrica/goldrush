@@ -15,6 +15,7 @@ use App\GoldTrading\Models\GoldLot;
 use App\GoldTrading\Models\GoldProcessing;
 use App\GoldTrading\Models\GoldSale;
 use App\GoldTrading\Models\TradingExpense;
+use App\GoldTrading\Services\LotResultCalculator;
 use App\Investor\Support\Money;
 use App\Models\Admin\Admin;
 use Illuminate\Console\Command;
@@ -84,6 +85,8 @@ class GoldAccountingSelfTestCommand extends Command
             $this->permissions($gold, $bank);
             $this->historicalRefused($gold);
             $this->divergenceReported($valuation, $lot);
+            $this->capitalisedProcessing($gold, $valuation, $accounts, $cash);
+            $this->partialSale($gold, $valuation, $accounts, $cash);
             $this->trialBalance($trialBalance);
         } catch (\Throwable $e) {
             $this->check('Unexpected failure', false, $e->getMessage());
@@ -130,21 +133,41 @@ class GoldAccountingSelfTestCommand extends Command
         return self::SUCCESS;
     }
 
-    private function makeLot(): GoldLot
+    private function makeLot(?float $totalCost = null, ?float $grams = null, ?float $wastePercent = null): GoldLot
     {
+        $grams ??= self::GRAMS;
+        $totalCost ??= self::GRAMS * self::PRICE_PER_GRAM;
+        $perGram = $grams > 0 ? round($totalCost / $grams, 8) : 0.0;
+
         return GoldLot::create([
-            'lot_code'             => 'GT-SELFTEST-' . substr(md5((string) microtime(true)), 0, 6),
+            'lot_code'             => 'GT-SELFTEST-' . substr(md5(uniqid('', true)), 0, 8),
             'purchase_date'        => $this->date,
             'project_name'         => 'Self-test deal',
             'location'             => 'Test',
-            'gross_grams'          => self::GRAMS,
+            'gross_grams'          => $grams,
             'purchase_currency'    => 'USD',
-            'price_per_gram_local' => self::PRICE_PER_GRAM,
+            'price_per_gram_local' => $perGram,
             'fx_rate_to_usd'       => 1,
-            'price_per_gram_usd'   => self::PRICE_PER_GRAM,
-            'total_cost_local'     => self::GRAMS * self::PRICE_PER_GRAM,
-            'total_cost_usd'       => self::GRAMS * self::PRICE_PER_GRAM,
+            'price_per_gram_usd'   => $perGram,
+            'total_cost_local'     => $totalCost,
+            'total_cost_usd'       => $totalCost,
             'status'               => 'purchased',
+        ]);
+    }
+
+    private function makeSale(GoldLot $lot, float $grams, float $pricePerGram): GoldSale
+    {
+        return GoldSale::create([
+            'sale_code'          => $lot->lot_code . '-S' . (GoldSale::where('gold_lot_id', $lot->id)->count() + 1),
+            'gold_lot_id'        => $lot->id,
+            'sale_date'          => $this->date,
+            'buyer_name'         => 'Self-test buyer',
+            'grams_sold'         => $grams,
+            'price_per_gram_usd' => $pricePerGram,
+            'gross_proceeds_usd' => round($grams * $pricePerGram, 8),
+            'settlement_currency' => 'USD',
+            'fx_rate_to_usd'     => 1,
+            'status'             => GoldSale::STATUS_SETTLED,
         ]);
     }
 
@@ -426,6 +449,160 @@ class GoldAccountingSelfTestCommand extends Command
             $divergence['agrees'],
             'capitalised ' . Money::format($divergence['capitalised_cost_usd'])
             . ', difference ' . Money::exact($divergence['cogs_difference_usd'])
+        );
+    }
+
+    /**
+     * Decision D4, on the figures that were specified: 2,000 for 25 g, 8% lost,
+     * and a 100 processing charge that belongs in the gold rather than in the
+     * period's expenses.
+     */
+    private function capitalisedProcessing(
+        GoldTradingPoster $gold,
+        InventoryValuation $valuation,
+        CashAccountService $accounts,
+        CashService $cash,
+    ): void {
+        $bank = $accounts->create(['name' => 'D4 Bank', 'type' => CashAccount::TYPE_BANK, 'code' => 'D4-BANK']);
+        $cash->receipt($bank, 10000.00, '2000', ['date' => $this->date, 'memo' => 'D4 funding']);
+
+        $lot = $this->makeLot(2000.00, 25.0, 8.0);
+        $gold->purchase($lot, $bank, ['date' => $this->date]);
+
+        $processing = GoldProcessing::create([
+            'gold_lot_id'      => $lot->id,
+            'processed_at'     => $this->date,
+            'method'           => 'D4 refining',
+            'input_grams'      => 25.0,
+            'waste_grams'      => 2.0,
+            'waste_percent'    => 8.0,
+            'output_grams'     => 23.0,
+            'output_purity'    => '24K',
+            'cost_usd'         => 100.00,
+            'cost_capitalised' => true,
+        ]);
+
+        $refineJournal = $gold->refine($processing, $bank, ['date' => $this->date]);
+        $v = $valuation->forLot($lot->fresh());
+
+        $this->check(
+            'D4: processing cost enters inventory, not expenses',
+            abs($v['cost_basis_usd'] - 2100.00) < 0.00000001
+            && abs($v['gl_refined_usd'] - 2100.00) < 0.00000001
+            && $refineJournal->balances(),
+            'cost basis ' . Money::format($v['cost_basis_usd'])
+            . ' = 2,000.00 purchase + ' . Money::format($v['capitalised_cost_usd']) . ' processing; '
+            . 'ledger refined inventory ' . Money::format($v['gl_refined_usd'])
+        );
+
+        $expectedPerGram = round(2100.00 / 23.0, 8);
+
+        $this->check(
+            'D4: cost per refined gram is 2,100.00 / 23 g',
+            abs($v['cost_per_refined_gram'] - $expectedPerGram) < 0.00000001,
+            Money::exact($v['cost_per_refined_gram']) . ' expected ' . Money::exact($expectedPerGram)
+        );
+
+        $sale = $this->makeSale($lot, 23.0, 130.00);
+        $saleJournal = $gold->sell($sale, $bank, ['date' => $this->date]);
+        $after = $valuation->forLot($lot->fresh());
+
+        $cogsLine = $saleJournal->lines->first(fn ($l) => $l->account->code === '5000');
+
+        $this->check(
+            'D4: selling all 23 g charges the whole 2,100.00 to cost of sales',
+            abs($cogsLine->debit - 2100.00) < 0.00000001
+            && abs($after['gl_refined_usd']) < 0.00000001,
+            'COGS ' . Money::format($cogsLine->debit) . ', inventory left ' . Money::format($after['gl_refined_usd'])
+        );
+
+        // The point of the whole decision: the 100 is in the cost of the gold, so
+        // it must not appear again as an expense of the deal.
+        $result = app(LotResultCalculator::class)->forLot($lot->fresh());
+
+        $this->check(
+            'D4: the processing charge is not counted twice',
+            abs((float) $result['expenses_usd']) < 0.00000001
+            && abs((float) $result['cost_of_goods_sold_usd'] - 2100.00) < 0.00000001,
+            'deal expenses ' . Money::format((float) $result['expenses_usd'])
+            . ', COGS ' . Money::format((float) $result['cost_of_goods_sold_usd'])
+        );
+
+        $expectedNet = round(23.0 * 130.00 - 2100.00, 8);
+
+        $this->check(
+            'D4: trading result is proceeds less the full inventory cost',
+            abs((float) $result['net_profit_usd'] - $expectedNet) < 0.00000001,
+            Money::format(23.0 * 130.00) . ' - ' . Money::format(2100.00)
+            . ' = ' . Money::format((float) $result['net_profit_usd'])
+        );
+
+        $divergence = $valuation->divergence($lot->fresh());
+
+        $this->check(
+            'D4: ledger and deal result agree with a processing charge present',
+            $divergence['agrees'],
+            'difference ' . Money::exact($divergence['cogs_difference_usd'])
+            . ' on a capitalised ' . Money::format($divergence['capitalised_cost_usd'])
+        );
+    }
+
+    /** Only the cost of what was sold leaves inventory; the rest keeps its value. */
+    private function partialSale(
+        GoldTradingPoster $gold,
+        InventoryValuation $valuation,
+        CashAccountService $accounts,
+        CashService $cash,
+    ): void {
+        $bank = $accounts->create(['name' => 'D4 Partial Bank', 'type' => CashAccount::TYPE_BANK, 'code' => 'D4-PART']);
+        $cash->receipt($bank, 10000.00, '2000', ['date' => $this->date, 'memo' => 'Partial sale funding']);
+
+        $lot = $this->makeLot(2000.00, 25.0, 8.0);
+        $gold->purchase($lot, $bank, ['date' => $this->date]);
+
+        $processing = GoldProcessing::create([
+            'gold_lot_id'      => $lot->id,
+            'processed_at'     => $this->date,
+            'method'           => 'Partial sale refining',
+            'input_grams'      => 25.0,
+            'waste_grams'      => 2.0,
+            'waste_percent'    => 8.0,
+            'output_grams'     => 23.0,
+            'output_purity'    => '24K',
+            'cost_usd'         => 100.00,
+            'cost_capitalised' => true,
+        ]);
+
+        $gold->refine($processing, $bank, ['date' => $this->date]);
+
+        $sale = $this->makeSale($lot, 10.0, 130.00);
+        $journal = $gold->sell($sale, $bank, ['date' => $this->date]);
+        $after = $valuation->forLot($lot->fresh());
+
+        $perGram = round(2100.00 / 23.0, 8);
+        $expectedCogs = round($perGram * 10.0, 8);
+        $expectedRemaining = round(2100.00 - $expectedCogs, 8);
+
+        $cogsLine = $journal->lines->first(fn ($l) => $l->account->code === '5000');
+
+        $this->check(
+            'Partial sale charges only the grams that left',
+            abs($cogsLine->debit - $expectedCogs) < 0.00000001,
+            'COGS ' . Money::exact($cogsLine->debit) . ' for 10 g at ' . Money::exact($perGram) . '/g'
+        );
+
+        $this->check(
+            'Unsold gold keeps its carrying value',
+            abs($after['gl_refined_usd'] - $expectedRemaining) < 0.00000001
+            && abs($after['remaining_value_usd'] - $expectedRemaining) < 0.00000001
+            && abs($after['remaining_grams'] - 13.0) < 0.0001,
+            '13 g left, carried at ' . Money::exact($after['gl_refined_usd'])
+        );
+
+        $this->check(
+            'Cost sold plus cost held equals the cost basis',
+            abs(($expectedCogs + $expectedRemaining) - 2100.00) < 0.00000001,
+            Money::exact($expectedCogs) . ' + ' . Money::exact($expectedRemaining) . ' = 2,100.00000000'
         );
     }
 
