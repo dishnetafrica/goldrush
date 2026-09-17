@@ -54,6 +54,14 @@ class InvestorSelfTestCommand extends Command
         $this->line('Investor self-test: ' . $user->username);
         $this->line(str_repeat('-', 60));
 
+        // Documents that already existed are the investor's, not this test's.
+        // Nothing here may disturb them, and the last check proves it did not.
+        $preExisting = InvestorDocument::where('user_id', $user->id)
+            ->get()
+            ->filter(fn (InvestorDocument $d) => $d->intact())
+            ->pluck('file_path', 'document_number')
+            ->all();
+
         DB::beginTransaction();
 
         try {
@@ -66,6 +74,7 @@ class InvestorSelfTestCommand extends Command
             $this->documents($user, $issuer);
             $this->documentSecurity($user, $issuer);
             $this->idempotency($user, $issuer);
+            $this->reissueWhenFileMissing($user, $issuer);
             $this->refusesBadStatement($user, $builder, $recorder);
             $this->movementTypes($user, $recorder, $builder);
         } catch (\Throwable $e) {
@@ -73,6 +82,7 @@ class InvestorSelfTestCommand extends Command
         } finally {
             DB::rollBack();
             $this->cleanUpFiles();
+            $this->preExistingUntouched($preExisting);
         }
 
         $this->table(
@@ -294,6 +304,51 @@ class InvestorSelfTestCommand extends Command
     }
 
     /**
+     * A document whose file has gone missing must be reissued, superseding the
+     * original rather than colliding with it.
+     *
+     * This is not hypothetical: a bug in this very command deleted files that
+     * belonged to committed documents, leaving rows pointing at nothing, and the
+     * reissue then failed on a unique key. The original file is put back before
+     * this returns.
+     */
+    private function reissueWhenFileMissing(User $user, DocumentIssuer $issuer): void
+    {
+        $document = InvestorDocument::where('user_id', $user->id)
+            ->where('type', InvestorDocument::TYPE_RECEIPT)
+            ->whereNull('revoked_at')
+            ->first();
+
+        if (! $document || ! $document->intact()) {
+            $this->check('Missing document file is superseded and reissued', false, 'no intact receipt to test with');
+
+            return;
+        }
+
+        $backup = $document->contents();
+        $path = $document->file_path;
+        Storage::disk(InvestorDocument::DISK)->delete($path);
+
+        try {
+            $replacement = $this->track($issuer->receipt($user, $document->event_reference));
+
+            $this->check(
+                'Missing document file is superseded and reissued',
+                $replacement->id !== $document->id
+                && $replacement->intact()
+                && $document->fresh()->revoked_at !== null
+                && $replacement->supersedes_document_id === $document->id,
+                $document->document_number . ' superseded by ' . $replacement->document_number
+            );
+        } catch (\Throwable $e) {
+            $this->check('Missing document file is superseded and reissued', false, $e->getMessage());
+        } finally {
+            // Put the investor's real document back exactly as it was.
+            Storage::disk(InvestorDocument::DISK)->put($path, $backup);
+        }
+    }
+
+    /**
      * The gate itself: if the ledger stops agreeing with the wallet, no statement
      * may be produced.
      */
@@ -346,11 +401,51 @@ class InvestorSelfTestCommand extends Command
             ->first();
     }
 
+    /**
+     * Remembers files this run created, so the cleanup can remove those and only
+     * those.
+     *
+     * The issuer returns an existing document when one is already on file, and
+     * that document belongs to the investor, not to this test. Deleting its file
+     * destroyed a real receipt and left a row pointing at nothing.
+     */
     private function track(InvestorDocument $document): InvestorDocument
     {
-        $this->filesWritten[] = $document->file_path;
+        if ($document->wasRecentlyCreated) {
+            $this->filesWritten[] = $document->file_path;
+        }
 
         return $document;
+    }
+
+    /**
+     * Confirms the investor's own documents came through untouched.
+     *
+     * This exists because they once did not: the cleanup deleted files belonging
+     * to documents the issuer had merely handed back, leaving committed rows
+     * pointing at nothing.
+     *
+     * @param  array<string, string>  $preExisting  document number => file path
+     */
+    private function preExistingUntouched(array $preExisting): void
+    {
+        $damaged = [];
+
+        foreach ($preExisting as $number => $path) {
+            $document = InvestorDocument::where('document_number', $number)->first();
+
+            if (! $document || ! $document->intact()) {
+                $damaged[] = $number;
+            }
+        }
+
+        $this->check(
+            'Pre-existing investor documents left untouched',
+            $damaged === [],
+            $damaged === []
+                ? count($preExisting) . ' document(s) still intact'
+                : 'damaged: ' . implode(', ', $damaged)
+        );
     }
 
     /** The DB rolls back on its own; files written to disk do not. */

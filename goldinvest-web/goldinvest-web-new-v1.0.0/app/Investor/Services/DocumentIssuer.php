@@ -138,10 +138,14 @@ class DocumentIssuer
         Storage::disk(InvestorDocument::DISK)->put($path, $pdf);
 
         // A superseded receipt keeps its row and its file; the new one points back
-        // at it. Nothing is overwritten, so the trail survives.
+        // at it. Nothing is overwritten, so the trail survives. Moving the old row
+        // out of the live slot is what lets the replacement be written at all.
         if (($attributes['supersedes_document_id'] ?? null) !== null) {
             InvestorDocument::where('id', $attributes['supersedes_document_id'])
-                ->update(['revoked_at' => Carbon::now()]);
+                ->update([
+                    'revoked_at'    => Carbon::now(),
+                    'supersede_seq' => DB::raw('id'),
+                ]);
         }
 
         return InvestorDocument::create($attributes + [

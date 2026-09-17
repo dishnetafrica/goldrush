@@ -29,7 +29,7 @@ class InvestorDocument extends Model
         'gold_lot_id', 'period_start', 'period_end', 'file_path', 'file_hash',
         'file_bytes', 'currency_code', 'closing_available', 'closing_profit',
         'closing_committed', 'meta', 'generated_at', 'generated_by',
-        'revoked_at', 'supersedes_document_id',
+        'revoked_at', 'supersedes_document_id', 'supersede_seq',
     ];
 
     protected $casts = [
@@ -51,7 +51,7 @@ class InvestorDocument extends Model
             // content and identity never change.
             $changed = array_keys($document->getDirty());
 
-            if (array_diff($changed, ['revoked_at', 'updated_at']) !== []) {
+            if (array_diff($changed, ['revoked_at', 'supersede_seq', 'updated_at']) !== []) {
                 throw new LedgerException(
                     'Document ' . $document->document_number . ' has been issued and cannot be altered. '
                     . 'Issue a superseding document instead.'
