@@ -42,6 +42,26 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Investor allocation policy (Phase 3F)
+    |--------------------------------------------------------------------------
+    |
+    | The investor pool for a period is the sum of the period's finalized,
+    | recorded deal results, each split under that deal's own recorded terms.
+    | Nothing here is a return: it is a share of what the company actually
+    | realized, and when the company realized nothing the share is nothing.
+    |
+    | reserve_percent is the company's retention before allocation. It is zero
+    | by policy and exists only so that a retention, if one is ever agreed, has
+    | a single place to be declared rather than being wired into a calculation.
+    |
+    */
+
+    'allocation' => [
+        'reserve_percent' => (float) env('ACCOUNTING_ALLOCATION_RESERVE_PERCENT', 0),
+    ],
+
     'expenses' => [
         'allow_self_approval' => env('ACCOUNTING_ALLOW_SELF_APPROVAL', false),
 

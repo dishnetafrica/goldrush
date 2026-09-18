@@ -395,26 +395,75 @@ not reversible). `reject()` now also accepts an approved claim that has not
 reached the ledger. Approval is a decision about a claim; posting is what makes
 it a cost, and a duplicate can still come to light between the two.
 
-## 3F, second half: investor allocation — NOT BUILT, dependency reported
+## 3F, second half: the investor allocation policy (calculation only)
 
-What exists:
+What share of a period's realized result is the investors', under the approved
+policy. **A calculation and a report. Nothing is distributed**: no journal, no
+investor ledger entry, no wallet. `InvestorAllocation::forPeriod()` produces the
+figure a later, separately approved distribution would act on, and every reason
+it cannot yet be acted on.
 
-- **per-deal terms**: `gold_lots.investor_share_percent`, `gold_lots.expense_policy`
-  (`deal_before_split` | `company_share`), and a per-investor override on
-  `gold_capital_allocations.share_percent`, set by `gold:set-terms`;
-- **a per-deal split rule**: `LotResultCalculator::splitResult()` applies capital
-  share × profit share to the deal's pool, and refuses when no terms exist;
-- **the legacy fixed-return engine**: `investment_plans.profit_percentage` and
-  `plan_duration`, `investment_profit_logs` — the thing this architecture exists
-  to replace, and which must not be read.
+```bash
+php artisan allocation preview 2026-09
+php artisan allocation:selftest
+```
 
-What does not exist, and cannot be inferred from the above without inventing it:
-a **period-level** allocation rule. See the 3F dependency report for the
-decisions required.
+### The policy, decision by decision
 
-## Not in 3F (close)
+| | Rule | Where |
+|---|---|---|
+| basis | sum of the period's **finalized, recorded** deal results, each split under **that deal's own recorded terms** | `LotResult` (immutable) → `splitResult()` |
+| overheads | costs belonging to no deal **do not reduce the pool**; shown, excluded | `company_overheads_excluded_usd` |
+| eligibility | a recorded `realized_at` in this period; nothing interim, nothing still holding gold, nothing historical | `eligible` / `ineligible` |
+| missing terms | an eligible deal with no investor share **refuses the whole allocation, by name** | `blocked` |
+| no capital | an eligible deal with no investor capital recorded **also refuses** — not silently treated as the company's | `blocked` |
+| loss | a negative pool **refuses**: `Negative investor allocation requires an approved loss policy.` | `loss_policy_status` |
+| reserve | **0**, from `accounting.allocation.reserve_percent`; declared in one place, never wired into a formula | `reserve_usd` |
+| the 100% | a per-deal term on the two historical deals, **never a default** | test 9 |
+| sequence | a distribution follows a close; an open period is not distributable | `refusals` |
 
-The investor allocation and distribution (3F, second half), reports (3G),
+### The formula
+
+```
+for each eligible deal d (recorded LotResult in the period, terms present, capital present):
+    pool_basis(d) = net_profit(d)            if expense_policy = deal_before_split
+                  = gross_profit(d)          if expense_policy = company_share
+    for each investor i on d:
+        capital_share(i,d) = capital(i,d) / Σ capital(d)
+        profit_share(i,d)  = allocation.share_percent(i,d) ?? lot.investor_share_percent
+        allocation(i,d)    = pool_basis(d) × capital_share(i,d) × profit_share(i,d)
+    investor(d) = Σ_i allocation(i,d)
+
+gross_pool = Σ_d investor(d)
+reserve    = gross_pool × reserve_percent          (= 0 by policy)
+pool       = gross_pool − reserve
+```
+
+The figures come from the **recorded** `LotResult`, not a recomputation. The
+recorded result is immutable, so the allocation cannot drift from what was
+stood behind.
+
+### Account 7000 is an outcome, never an input
+
+The company's result is read from 4000, 5000 and 6000–6899 first; this
+calculation is applied to it afterwards. 7000 is outside the trading range by
+construction (see 3E) and this service never reads it. Test 13 posts 500.00 to
+7000 inside the period and proves neither the trading result nor the pool
+moves. When a distribution is eventually built, `Dr 7000 / Cr 2010` is the
+appropriation *of* the result, posted after the result is established — and
+the result stays the same number.
+
+### What is not read
+
+`investment_plans`, `profit_percentage`, `plan_duration`, `investment_profit_logs`.
+Test 14 checks the compiled source of the allocation and result-calculator
+classes for any reference (comments stripped), and where the legacy table
+exists inserts a 99% plan at runtime and proves the pool does not move.
+
+## Not in 3F
+
+The distribution itself (posting `Dr 7000 / Cr 2010`, the investor ledger
+credit, idempotency by period / investor / reference), reports (3G),
 historical backfill (3H) and admin screens (3I).
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
