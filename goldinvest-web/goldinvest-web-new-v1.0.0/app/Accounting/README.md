@@ -604,6 +604,26 @@ been posted to. G2: no real investor capital is on 2000. G3: no retained-
 earnings sweep at close. G4: inventory is at cost only. Each is captioned where
 it shows, and none is implemented here.
 
+### 3G baseline (FINAL PASS, frozen at commit be6929b)
+
+Approved after the real-MySQL run (37/37, full Phase 1-3F chain), browser QA
+(84/84, four admin roles and two investors) and read-only verification.
+Frozen as part of this baseline, not to be changed unless a defect is found:
+the report source-of-truth matrix; GL-driven company reporting; investor
+liability reporting; historical attribution treatment; D2/D3 PRE-BACKFILL
+visibility; 1090 visibility; the P&L trading-result / appropriation
+separation; the declaration-dated appropriation presentation; the balance
+sheet structure; cash flow classification; gold trading reporting; period
+close reporting; the management dashboard; control and reconciliation
+reports; private, hashed period-close packs; investor/admin authorisation
+boundaries; export authorisation; read-only reporting behaviour.
+
+Deliberately open after 3G, each shown rather than hidden: D2/D3 (historical
+funding), G1 (investor withdrawals to the GL), G2 (investor capital to the
+GL), G3 (retained-earnings sweep), G4 (inventory market valuation), and 3H
+(historical backfill). Their order is to be decided at a separate
+specification gate before any further code.
+
 ## Architectural invariants (approved at the 3F gate, commit 85139ab)
 
 These are not guidelines. Anything built after 3F — reports, screens, the
