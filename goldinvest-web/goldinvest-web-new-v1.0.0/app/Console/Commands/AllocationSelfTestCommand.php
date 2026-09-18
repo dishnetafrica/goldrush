@@ -466,10 +466,17 @@ class AllocationSelfTestCommand extends Command
 
         if (Schema::hasTable('investment_plans')) {
             $before = $allocation->forPeriod($this->period);
+            // Every column the legacy table insists on, so the row actually lands
+            // and the proof is a runtime one rather than a skipped one.
             $columns = Schema::getColumnListing('investment_plans');
             $row = ['profit_percentage' => 99.0, 'created_at' => now(), 'updated_at' => now()];
-            foreach (['name' => 'Self-test plan', 'plan_duration' => 30, 'status' => 1, 'min_amount' => 1, 'max_amount' => 1,
-                'return_type' => 1, 'return_period' => 1, 'profit_type' => 1, 'fixed_amount' => 0] as $col => $val) {
+            foreach ([
+                'name' => 'Self-test plan', 'slug' => 'self-test-plan-' . substr(md5(uniqid('', true)), 0, 8),
+                'data' => json_encode(['title' => 'Self-test plan']), 'plan_duration' => 30,
+                'profit_return_type' => \App\Constants\GlobalConst::INVEST_PROFIT_ONE_TIME,
+                'minimum_investment' => 1, 'maximum_investment' => 1, 'profit' => 99, 'image' => 'self-test.png',
+                'status' => 1,
+            ] as $col => $val) {
                 if (in_array($col, $columns, true)) {
                     $row[$col] = $val;
                 }
