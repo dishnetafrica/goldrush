@@ -167,6 +167,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('investor-liability', 'investorLiability')->name('investor-liability');
         Route::get('controls', 'controls')->name('controls');
         Route::get('period-close/{period}', 'periodClose')->name('period-close');
+        // Exports. This route's grant is the export permission; the same grant
+        // also covers ?format= on the page routes and the close pack.
+        Route::get('export/{report}', 'export')->name('export');
         Route::post('period-close/{period}/pack', 'packStore')->name('pack.store');
         Route::get('pack/{pack}/download', 'packDownload')->name('pack.download');
     });

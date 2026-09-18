@@ -552,6 +552,17 @@ gold|investors|period|controls|dashboard|pack}` and `report:selftest`. Web:
 `admin/accounting/reports/*` (`AccountingReportController`) and the investor's
 `user/position` (`InvestorPositionController`).
 
+### Who may open a report
+
+The vendor's role editor grants route names and nothing else, so a report
+page's own route grant is its view grant, the investor liability page's route
+grant is the investor-report grant, and exports (PDF, CSV, the close pack)
+need the `admin.accounting.report.export` route grant, which exists as a real
+route for that reason. The accounting tokens (`report.view`, `report.investor`,
+`report.export`, `dashboard.view`, `control.view`) are accepted too. A refusal
+at this layer is an HTTP 403; a route the vendor layer has not granted keeps
+its 404. Investors see only their own position, whatever they are granted.
+
 ### Source-of-truth matrix
 
 | Figure | Authoritative source | Never from |

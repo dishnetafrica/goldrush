@@ -83,6 +83,23 @@ final class AccountingPermission
         return in_array($token, self::granted($actor), true);
     }
 
+    /**
+     * Whether the actor holds a vendor route grant.
+     *
+     * The admin role editor can grant only real route names, so a web page's
+     * own route grant is the grant the business can actually operate. The
+     * accounting tokens above remain for services and the console; a page
+     * accepts either.
+     */
+    public static function allowsRoute(?Admin $actor, string $routeName): bool
+    {
+        if ($actor === null || $actor->isSuperAdmin()) {
+            return true;
+        }
+
+        return in_array($routeName, self::granted($actor), true);
+    }
+
     public static function assert(?Admin $actor, string $token): void
     {
         if (! self::allows($actor, $token)) {

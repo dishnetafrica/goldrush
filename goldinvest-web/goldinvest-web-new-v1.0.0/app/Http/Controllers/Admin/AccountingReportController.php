@@ -24,9 +24,15 @@ use Illuminate\Support\Facades\Storage;
  * Phase 3G: the accounting reports.
  *
  * Every action here reads. The only writes are the audit row that says the
- * report was rendered and, for a closed period, the close pack. Permission is
- * checked twice: the vendor's route grant, and the accounting token, so a
- * route granted by mistake still shows nothing.
+ * report was rendered and, for a closed period, the close pack.
+ *
+ * Authorisation: the vendor's role editor grants route names, so a page's own
+ * route grant is its view grant; the investor liability page's route grant is
+ * the investor-report grant; and exports (PDF, CSV, the close pack) need the
+ * export route grant, which exists as a real route for exactly that reason.
+ * The accounting tokens are accepted as well, for roles granted them directly.
+ * A refusal here is a 403, never an unhandled exception; a route the vendor
+ * layer has not granted never reaches here (its 404 is preserved).
  */
 class AccountingReportController extends Controller
 {
@@ -41,9 +47,15 @@ class AccountingReportController extends Controller
     ) {
     }
 
+    public const EXPORT_ROUTE = 'admin.accounting.report.export';
+
+    private const REPORTS = [
+        'trial-balance', 'profit-loss', 'balance-sheet', 'cash-flow', 'gold-trading', 'investor-liability', 'controls', 'period-close',
+    ];
+
     public function dashboard()
     {
-        AccountingPermission::assert(auth()->user(), AccountingPermission::DASHBOARD_VIEW);
+        $this->authorise(AccountingPermission::DASHBOARD_VIEW, 'admin.accounting.report.dashboard');
 
         $data = $this->trading->dashboard();
         $this->audit->record('dashboard', ['as_at' => $data['as_at']], [], true, auth()->user());
@@ -101,9 +113,28 @@ class AccountingReportController extends Controller
             fn (ReportScope $s) => $this->controls->all($s));
     }
 
+    /** The export endpoint: the route whose grant is the export permission. */
+    public function export(Request $request, string $report)
+    {
+        abort_unless(in_array($report, self::REPORTS, true), 404);
+
+        $request->merge(['format' => $request->input('format', 'pdf')]);
+
+        return match ($report) {
+            'trial-balance'      => $this->trialBalance($request),
+            'profit-loss'        => $this->profitLoss($request),
+            'balance-sheet'      => $this->balanceSheet($request),
+            'cash-flow'          => $this->cashFlow($request),
+            'gold-trading'       => $this->goldTrading($request),
+            'investor-liability' => $this->investorLiability($request),
+            'controls'           => $this->controls($request),
+            'period-close'       => $this->periodClose($request, (string) $request->input('period', '')),
+        };
+    }
+
     public function packStore(string $period)
     {
-        AccountingPermission::assert(auth()->user(), AccountingPermission::REPORT_EXPORT);
+        $this->authorise(AccountingPermission::REPORT_EXPORT, self::EXPORT_ROUTE);
 
         $p = AccountingPeriod::where('code', $period)->firstOrFail();
 
@@ -120,7 +151,7 @@ class AccountingReportController extends Controller
 
     public function packDownload(int $pack)
     {
-        AccountingPermission::assert(auth()->user(), AccountingPermission::REPORT_EXPORT);
+        $this->authorise(AccountingPermission::REPORT_EXPORT, self::EXPORT_ROUTE);
 
         $p = PeriodClosePack::findOrFail($pack);
 
@@ -132,7 +163,8 @@ class AccountingReportController extends Controller
     /** Render a report to the screen, a PDF or a CSV, and record that it was. */
     private function render(Request $request, string $token, string $title, string $partial, \Closure $build, ?string $periodCode = null)
     {
-        AccountingPermission::assert(auth()->user(), $token);
+        // The page's own route grant, or the accounting token: either lets it be viewed.
+        $this->authorise($token, 'admin.accounting.report.' . $partial);
 
         try {
             $scope = ReportScope::fromInput($request->only(['period', 'from', 'to', 'as_at', 'source_period', 'lot', 'user']));
@@ -144,7 +176,7 @@ class AccountingReportController extends Controller
         $format = $request->string('format')->toString();
 
         if ($format !== '') {
-            AccountingPermission::assert(auth()->user(), AccountingPermission::REPORT_EXPORT);
+            $this->authorise(AccountingPermission::REPORT_EXPORT, self::EXPORT_ROUTE);
 
             if ($format === 'csv') {
                 $csv = $this->csv->string($data);
@@ -176,6 +208,20 @@ class AccountingReportController extends Controller
             'page_title' => __($title), 'title' => $title, 'partial' => $partial, 'data' => $data, 'scope' => $scope,
             'periods' => $periods, 'packs' => $packs, 'input' => $request->only(['period', 'from', 'to', 'as_at', 'source_period', 'lot', 'user', 'show_zero']),
             'routeName' => 'admin.accounting.report.' . $partial, 'periodCode' => $periodCode,
+            'canExport' => AccountingPermission::allows(auth()->user(), AccountingPermission::REPORT_EXPORT)
+                || AccountingPermission::allowsRoute(auth()->user(), self::EXPORT_ROUTE),
         ]);
+    }
+
+    /** Refuse with a 403 unless the admin holds the accounting token or the route grant. */
+    private function authorise(string $token, string $routeName): void
+    {
+        $admin = auth()->user();
+
+        if (AccountingPermission::allows($admin, $token) || AccountingPermission::allowsRoute($admin, $routeName)) {
+            return;
+        }
+
+        abort(403, 'This report needs the "' . $routeName . '" grant (or the "' . $token . '" permission).');
     }
 }

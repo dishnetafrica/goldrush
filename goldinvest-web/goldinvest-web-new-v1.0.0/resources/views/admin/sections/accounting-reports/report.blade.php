@@ -49,8 +49,13 @@
             @endif
             <div class="col-md-2"><button type="submit" class="btn btn--base w-100">{{ __("Run") }}</button></div>
             <div class="col-md-2">
-                <a class="btn btn--secondary" href="{{ request()->fullUrlWithQuery(['format' => 'pdf']) }}">{{ __("PDF") }}</a>
-                <a class="btn btn--secondary" href="{{ request()->fullUrlWithQuery(['format' => 'csv']) }}">{{ __("CSV") }}</a>
+                @if ($canExport)
+                    @php $exportQuery = array_filter($input) + ($periodCode ? ['period' => $periodCode] : []); @endphp
+                    <a class="btn btn--secondary" href="{{ setRoute('admin.accounting.report.export', array_merge([$partial], $exportQuery, ['format' => 'pdf'])) }}">{{ __("PDF") }}</a>
+                    <a class="btn btn--secondary" href="{{ setRoute('admin.accounting.report.export', array_merge([$partial], $exportQuery, ['format' => 'csv'])) }}">{{ __("CSV") }}</a>
+                @else
+                    <small class="text-muted">{{ __("Export needs the export grant") }}</small>
+                @endif
             </div>
         </form>
         <p class="text-muted mt-2 mb-0" style="font-size:12px;">{{ __("Every figure on this page is read from posted journal lines and recorded results. Nothing here posts, recomputes or corrects anything.") }}</p>
@@ -67,11 +72,13 @@
                 <p>{{ $pk->reference }} for {{ $pk->close_reference }} - {{ number_format($pk->file_bytes / 1024, 1) }} KB, sha256 <code>{{ $pk->file_hash }}</code>, generated {{ $pk->generated_at->format('d M Y H:i') }} by {{ $pk->generated_by }}
                     <a class="btn btn-sm btn--base" href="{{ setRoute('admin.accounting.report.pack.download', $pk->id) }}">{{ __("Download") }}</a></p>
             @endforeach
-            @if ($data['period']['is_closed'])
+            @if ($data['period']['is_closed'] && $canExport)
                 <form method="POST" action="{{ setRoute('admin.accounting.report.pack.store', $data['period']['code']) }}">@csrf
                     <button class="btn btn--base" type="submit">{{ __("Generate close pack (once per close; immutable, hashed)") }}</button></form>
-            @else
+            @elseif (! $data['period']['is_closed'])
                 <p class="text-muted">{{ __("A close pack is generated once the period is closed.") }}</p>
+            @else
+                <p class="text-muted">{{ __("Generating the close pack needs the export grant.") }}</p>
             @endif
         @endif
     </div></div>
