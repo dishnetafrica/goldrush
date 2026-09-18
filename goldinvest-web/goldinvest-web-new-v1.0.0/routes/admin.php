@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\MoneyOutController;
 use App\Http\Controllers\Admin\SetupKycController;
 use App\Http\Controllers\Admin\UserCareController;
+use App\Http\Controllers\Admin\InvestorLedgerController;
+use App\Http\Controllers\Admin\AccountingReportController;
 use App\Http\Controllers\Admin\AdminCareController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\GoldStockController;
@@ -143,6 +145,35 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     // User Care Section
+    // Investor ledgers, statements and receipts. Read and issue only: nothing
+    // here can edit a ledger entry or a document.
+    Route::controller(InvestorLedgerController::class)->prefix('investor-ledger')->name('investor.ledger.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('document/{document}/download', 'download')->name('document.download');
+        Route::get('{user}', 'show')->name('show');
+        Route::post('{user}/statement', 'statement')->name('statement');
+        Route::post('{user}/receipts', 'receipts')->name('receipts');
+    });
+
+    // Phase 3G accounting reports. Read-only: every figure comes from the posted
+    // general ledger and the recorded results; nothing here posts or changes anything.
+    Route::controller(AccountingReportController::class)->prefix('accounting/reports')->name('accounting.report.')->group(function () {
+        Route::get('/', 'dashboard')->name('dashboard');
+        Route::get('trial-balance', 'trialBalance')->name('trial-balance');
+        Route::get('profit-loss', 'profitLoss')->name('profit-loss');
+        Route::get('balance-sheet', 'balanceSheet')->name('balance-sheet');
+        Route::get('cash-flow', 'cashFlow')->name('cash-flow');
+        Route::get('gold-trading', 'goldTrading')->name('gold-trading');
+        Route::get('investor-liability', 'investorLiability')->name('investor-liability');
+        Route::get('controls', 'controls')->name('controls');
+        Route::get('period-close/{period}', 'periodClose')->name('period-close');
+        // Exports. This route's grant is the export permission; the same grant
+        // also covers ?format= on the page routes and the close pack.
+        Route::get('export/{report}', 'export')->name('export');
+        Route::post('period-close/{period}/pack', 'packStore')->name('pack.store');
+        Route::get('pack/{pack}/download', 'packDownload')->name('pack.download');
+    });
+
     Route::controller(UserCareController::class)->prefix('users')->name('users.')->group(function () {
         Route::get('index', 'index')->name('index');
         Route::get('active', 'active')->name('active');

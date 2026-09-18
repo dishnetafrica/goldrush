@@ -1,0 +1,10 @@
+.git
+*.zip
+goldinvest-app
+goldinvest-offline-documentation.pdf
+goldinvest-online-documentation.html
+**/.DS_Store
+goldinvest-web/goldinvest-web-new-v1.0.0/node_modules
+goldinvest-web/goldinvest-web-new-v1.0.0/vendor
+goldinvest-web/goldinvest-web-new-v1.0.0/.env
+goldinvest-web/goldinvest-web-new-v1.0.0/storage/user

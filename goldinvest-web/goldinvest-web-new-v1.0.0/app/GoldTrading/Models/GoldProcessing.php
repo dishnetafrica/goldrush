@@ -1,0 +1,30 @@
+<?php
+
+namespace App\GoldTrading\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class GoldProcessing extends Model
+{
+    protected $fillable = [
+        'gold_lot_id', 'processed_at', 'method', 'input_grams', 'waste_grams',
+        'waste_percent', 'output_grams', 'output_purity', 'cost_usd', 'cost_capitalised',
+        'notes', 'recorded_by', 'journal_id', 'paid_from_cash_account_id',
+    ];
+
+    protected $casts = [
+        'processed_at'  => 'date',
+        'input_grams'   => 'float',
+        'waste_grams'   => 'float',
+        'waste_percent' => 'float',
+        'output_grams'  => 'float',
+        'cost_usd'         => 'float',
+        'cost_capitalised' => 'boolean',
+    ];
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(GoldLot::class, 'gold_lot_id');
+    }
+}

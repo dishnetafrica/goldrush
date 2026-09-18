@@ -11,6 +11,9 @@
 
 @section('content')
     <div class="dashboard-area mt-10">
+        {{-- Investor position, read from the account ledger --}}
+        <x-investor-buckets />
+
         <div class="dashboard-header-wrapper">
             <h3 class="title">{{ __("Overview") }}</h3>
         </div>

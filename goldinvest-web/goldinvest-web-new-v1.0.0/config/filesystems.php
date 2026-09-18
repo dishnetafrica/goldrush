@@ -36,6 +36,36 @@ return [
             'throw' => false,
         ],
 
+        /*
+         * Investor statements and receipts.
+         *
+         * Deliberately NOT under public/ and with no url: the vendor's own
+         * uploads go to a disk rooted at public_path(), which is why KYC files
+         * are fetchable by anyone who guesses a filename. Financial documents
+         * are served only through an authorised controller.
+         */
+        'investor-private' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/private/investor'),
+            'visibility' => 'private',
+            'throw'      => false,
+        ],
+
+        'expense-private' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/private/expenses'),
+            'visibility' => 'private',
+            'throw'      => false,
+        ],
+
+        // Period-close packs (Phase 3G): one immutable PDF per close, hashed.
+        'accounting-private' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/private/accounting'),
+            'visibility' => 'private',
+            'throw'      => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
