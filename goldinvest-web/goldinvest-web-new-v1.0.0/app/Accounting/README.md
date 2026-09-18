@@ -460,11 +460,80 @@ Test 14 checks the compiled source of the allocation and result-calculator
 classes for any reference (comments stripped), and where the legacy table
 exists inserts a 99% plan at runtime and proves the pool does not move.
 
+## 3F, third part: the distribution
+
+The moment a calculated allocation becomes money the company owes and credits
+the investors hold. Three things happen in one transaction, or none of them do:
+
+```
+company books      Dr 7000 Investor Profit Share / Cr 2010 Investor Profit Payable   (= pool)
+investor ledger    one profit_credited entry per investor, via LedgerRecorder        (Σ = pool)
+wallet             profit_balance += credit, through a GOLD-DEAL-PROFIT transactions row
+```
+
+```bash
+php artisan allocation preview    2026-09
+php artisan allocation distribute 2026-09 --confirm     # refuses without --confirm
+php artisan allocation show       2026-09
+php artisan allocation reverse    2026-09 --reason="..."
+php artisan distribution:selftest
+```
+
+### The door every credit uses
+
+The credit is not a new mechanism. It is a `transactions` row of the type the
+ledger already maps, the wallet moved by exactly that amount, and the ledger
+entry posted with `meta.stage = posted` — so `ledger:check` counts the
+transaction as accounted for and `ledger:sync`, finding it already recorded,
+leaves it alone. There is no second balance.
+
+### Prerequisites, all refused by name
+
+Open period · interim result · missing terms · missing capital · negative pool
+(`Negative investor allocation requires an approved loss policy.`) · zero pool
+(nothing to distribute, no zero-value journal) · a configured reserve (how a
+reserve is taken from investors is undecided, so it refuses rather than guesses).
+
+### Where the appropriation journal is dated
+
+A closed period accepts no postings, and the distribution does not make an
+exception for itself. The journal is dated **when the distribution is
+declared**, in the open period covering that date. The realized result belongs
+to the closed month; the decision to appropriate it belongs to the day it was
+taken. The distribution records both (`accounting_period_id` = the month
+distributed; `journal.accounting_period_id` = the month declared in).
+
+### Idempotency and immutability
+
+One distribution per period, enforced by a unique key on
+`(accounting_period_id, active_seq)` — `active_seq` is 0 while posted and
+becomes the row's own id when reversed, so a period can be distributed again
+after a reversal without the original ever being overwritten. One line per
+investor per distribution, unique at the database. Distributing twice hands
+back the existing distribution and writes nothing.
+
+The distribution, its snapshot, its lines, the ledger entries and the journal
+are all immutable once posted.
+
+### Reversal
+
+By the existing rules: the journal is reversed with its mirror; each investor
+credit is answered by a `profit_credited` entry of the opposite sign, linked by
+`reverses_entry_id`, through the same transactions door. If an investor has
+already moved the profit on, the ledger refuses to take the bucket negative and
+the whole reversal rolls back. After a reversal the period may be distributed
+again under a new reference; both stay on record.
+
+### The snapshot
+
+The full allocation as it was made — period, close reference, company result,
+every eligible deal with its result, every investor's capital share and profit
+share and amount, reserve, pool, reference, journal, actor, timestamp. Read
+this, not the deals, to see what a past distribution was based on.
+
 ## Not in 3F
 
-The distribution itself (posting `Dr 7000 / Cr 2010`, the investor ledger
-credit, idempotency by period / investor / reference), reports (3G),
-historical backfill (3H) and admin screens (3I).
+Reports (3G), historical backfill (3H) and admin screens (3I).
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
 credit and the two gold purchases remain unexplained until records say otherwise.
