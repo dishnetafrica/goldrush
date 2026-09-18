@@ -531,9 +531,44 @@ every eligible deal with its result, every investor's capital share and profit
 share and amount, reserve, pool, reference, journal, actor, timestamp. Read
 this, not the deals, to see what a past distribution was based on.
 
+## Architectural invariants (approved at the 3F gate, commit 85139ab)
+
+These are not guidelines. Anything built after 3F — reports, screens, the
+historical backfill — is designed against them, and a change to any one of
+them is an explicit accounting-policy decision, never a side effect.
+
+1. **The closed trading period is inviolate.** Nothing posts into it.
+2. **The trading result belongs to the period the trading was realized in.**
+3. **The appropriation journal is dated in the period the distribution is
+   declared in** — the decision's date, not the result's. The distribution
+   records both.
+4. **`Dr 7000 / Cr 2010` occurs only after** the realized result is recorded,
+   the period is closed, and every allocation prerequisite is satisfied.
+5. **Account 7000 never feeds back into the realized trading result.** The
+   result is 4000 − 5000 − (6000–6899), and 7000 is outside that range by
+   construction. This is a permanent invariant, not a current state.
+6. **2010 Investor Profit Payable reconciles exactly** to the sum of investor
+   profit credits. No rounding gap is tolerated.
+7. **Investor capital stays in 2000 Investor Capital Payable.** A distribution
+   moves profit; it never moves capital.
+8. **The investor ledger is the single authoritative investor transaction
+   trail.** No second profit or balance mechanism, ever. A credit enters by
+   the door every credit enters by: a `transactions` row the ledger maps.
+9. **Historical attribution deals stay historical attribution** — labelled
+   "historical attribution - not posted to company GL" wherever shown — and
+   are never redistributed.
+10. **1090 Suspense stays untouched** unless the unresolved historical-funding
+    decision (D2/D3) is separately taken.
+11. **A distribution is idempotent, immutable once posted, and correctable
+    only by reversal** — both entries remain visible; the period may then be
+    distributed again under a new reference.
+12. **September 2026 stays open** and receives no real distribution until
+    separately authorized.
+
 ## Not in 3F
 
-Reports (3G), historical backfill (3H) and admin screens (3I).
+Reports (3G), historical backfill (3H) and admin screens (3I). The 3G scope is
+to be specified and reviewed before any of it is built.
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
 credit and the two gold purchases remain unexplained until records say otherwise.
