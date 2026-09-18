@@ -6,11 +6,26 @@
     @if ($p['interim'])
         <div class="alert alert-warning mt-10">{{ __("Interim: this view includes today, so figures may still change. A closed-period statement is final.") }}</div>
     @endif
-    <div class="row mt-10">
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">{{ __("Available balance") }}</span><h5>{{ Money::format($p['closing']['available']) }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">{{ __("Profit balance") }}</span><h5>{{ Money::format($p['closing']['profit']) }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">{{ __("Capital in active deals") }}</span><h5>{{ Money::format($p['closing']['committed']) }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">{{ __("Total position") }}</span><h5>{{ Money::format($p['closing']['total']) }} {{ $p['currency'] }}</h5></div></div></div>
+    {{-- The vendor's own dashboard tiles, so the figures are legible in the user theme. --}}
+    <div class="dashboard-item-area mt-10">
+        <div class="row mb-20-none">
+            @foreach ([
+                ['label' => __('Available balance'), 'value' => $p['closing']['available'], 'icon' => 'fas fa-wallet'],
+                ['label' => __('Profit balance'), 'value' => $p['closing']['profit'], 'icon' => 'fas fa-chart-line'],
+                ['label' => __('Capital in active deals'), 'value' => $p['closing']['committed'], 'icon' => 'fas fa-coins'],
+                ['label' => __('Total position'), 'value' => $p['closing']['total'], 'icon' => 'fas fa-university'],
+            ] as $card)
+                <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-6 col-sm-6 mb-20">
+                    <div class="dashbord-item">
+                        <div class="dashboard-content">
+                            <span class="sub-title">{{ $card['label'] }}</span>
+                            <h3 class="title">{{ Money::format($card['value']) }} <span class="text--base">{{ $p['currency'] }}</span></h3>
+                        </div>
+                        <div class="dashboard-icon"><i class="{{ $card['icon'] }}"></i></div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
     <div class="custom-card mt-10"><div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
