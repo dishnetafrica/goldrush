@@ -482,13 +482,25 @@ class AllocationSelfTestCommand extends Command
                 }
             }
             try {
-                DB::table('investment_plans')->insert($row);
+                $id = DB::table('investment_plans')->insertGetId($row);
+                $planned = (float) DB::table('investment_plans')->where('id', $id)->value('profit_percentage');
                 $after = $allocation->forPeriod($this->period);
-                $runtime = abs($after['investor_pool_usd'] - $before['investor_pool_usd']) < self::EPS;
-                $note .= '; a 99% legacy plan inserted at runtime changed nothing';
+
+                // Identical, not merely close: the whole report, every deal and
+                // every investor line, with the plan present and without it.
+                $runtime = $after === $before && abs($planned - 99.0) < self::EPS;
+                $note .= '; a ' . number_format($planned, 0) . '% legacy plan (id ' . $id . ') inserted at runtime; '
+                    . 'the allocation report is byte-identical with it present, pool '
+                    . Money::exact($after['investor_pool_usd']);
             } catch (\Throwable $e) {
-                $note .= '; legacy table present but a fixture row could not be inserted (' . substr($e->getMessage(), 0, 60) . ')';
+                // The table is there and the row did not land, so the runtime
+                // proof did not happen. That is a failure of this test, not a note.
+                $runtime = false;
+                $note .= '; LEGACY TABLE PRESENT BUT THE FIXTURE ROW WAS NOT INSERTED, so the runtime proof '
+                    . 'did not run: ' . substr($e->getMessage(), 0, 90);
             }
+        } else {
+            $note .= '; no legacy table in this database, so only the static proof applies here';
         }
 
         $this->check('The legacy investment_plans engine cannot influence the allocation', $static && $runtime, $note);
