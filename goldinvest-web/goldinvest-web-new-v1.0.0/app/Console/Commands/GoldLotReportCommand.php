@@ -55,6 +55,17 @@ class GoldLotReportCommand extends Command
                 ['Still in stock', $this->g($r['remaining_grams'])],
             ]);
 
+            // Deals that closed before the general ledger existed carry figures that
+            // describe who was paid what, not what the company's accounting
+            // realized. Once investor distributions exist the two are easy to take
+            // for each other, so the difference is stated wherever they are shown.
+            if ($lot->purchase_journal_id === null && $lot->result()->where('status', 'distributed')->exists()) {
+                $this->warn('HISTORICAL ATTRIBUTION - NOT POSTED TO COMPANY GL');
+                $this->line('  The figures below record who was paid what. They are not an accounting result,');
+                $this->line('  and the company ledger holds nothing for this deal until the historical backfill.');
+                $this->newLine();
+            }
+
             $this->table(['Money (USD)', 'Amount'], [
                 ['Capital cost of the gold', $this->m($r['cost_usd'])],
                 ['Cost per refined gram', $this->m($r['cost_per_refined_gram_usd'], 4)],

@@ -69,6 +69,9 @@ class TradingExpense extends Model
         self::STATUS_APPROVED => [
             'status', 'journal_id', 'posted_by', 'posted_at', 'capitalised_into',
             'paid_from_cash_account_id', 'payment_status', 'payment_journal_id', 'paid_by', 'paid_at',
+
+            // Withdrawn after approval but before posting: a duplicate found late.
+            'rejected_by', 'rejected_at', 'rejection_reason',
         ],
         self::STATUS_POSTED => [
             'status', 'payment_status', 'payment_journal_id', 'paid_by', 'paid_at',

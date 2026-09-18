@@ -2,6 +2,7 @@
 
 namespace App\Accounting\Models;
 
+use App\Accounting\Exceptions\AccountingException;
 use App\Models\Admin\Admin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,7 @@ class AccountingPeriod extends Model
 
     protected $fillable = [
         'code', 'starts_on', 'ends_on', 'status', 'closed_by', 'closed_at',
+        'close_reference', 'close_reason', 'snapshot',
         'locked_at', 'reopened_by', 'reopened_at', 'reopen_reason',
     ];
 
@@ -36,7 +38,39 @@ class AccountingPeriod extends Model
         'closed_at'   => 'datetime',
         'locked_at'   => 'datetime',
         'reopened_at' => 'datetime',
+        'snapshot'    => 'array',
     ];
+
+    /**
+     * What may change on a period that has been closed.
+     *
+     * The status, so it can be locked or reopened, and the reopening record.
+     * Never the snapshot or the close record: those say what the company stood
+     * behind and when, and a close whose evidence can be edited afterwards is
+     * not a close.
+     */
+    private const MUTABLE_AFTER_CLOSE = [
+        'status', 'locked_at', 'reopened_by', 'reopened_at', 'reopen_reason',
+    ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $period) {
+            if ($period->getOriginal('close_reference') === null) {
+                return;
+            }
+
+            $changed = array_diff(array_keys($period->getDirty()), ['updated_at']);
+            $refused = array_diff($changed, self::MUTABLE_AFTER_CLOSE);
+
+            if ($refused !== []) {
+                throw new AccountingException(
+                    'Period ' . $period->code . ' was closed as ' . $period->getOriginal('close_reference')
+                    . ' and its close record cannot be altered (' . implode(', ', $refused) . ').'
+                );
+            }
+        });
+    }
 
     public function journals(): HasMany
     {

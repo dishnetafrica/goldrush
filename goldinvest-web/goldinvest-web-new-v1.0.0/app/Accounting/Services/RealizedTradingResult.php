@@ -56,6 +56,17 @@ class RealizedTradingResult
     private const EXPENSE_FROM = '6000';
     private const EXPENSE_TO   = '6899';
 
+    /**
+     * What a deal that predates the general ledger is called, everywhere.
+     *
+     * Not simply "historical". Once investor distributions exist, the figure
+     * recorded against one of these deals and the figure the company's
+     * accounting realized are two different quantities that a reader could
+     * easily take for each other, so the name says which one it is every time
+     * it is shown.
+     */
+    public const HISTORICAL_ATTRIBUTION = 'historical attribution - not posted to company GL';
+
     public function __construct(private readonly LotCostBasis $costBasis)
     {
     }
@@ -211,7 +222,7 @@ class RealizedTradingResult
 
         $stage = match (true) {
             $lot->purchase_journal_id === null && $record?->status === LotResult::STATUS_DISTRIBUTED
-                => 'historical',
+                => self::HISTORICAL_ATTRIBUTION,
             $lot->purchase_journal_id === null  => 'not in the ledger',
             ! $tradingComplete                  => 'trading in progress',
             ! $expensesFinalised || $unposted > self::EPSILON
@@ -222,8 +233,9 @@ class RealizedTradingResult
         };
 
         $qualification = match ($stage) {
-            'historical' => 'Closed and distributed before the general ledger existed. '
-                . 'Its figures are attribution records, not accounting, until the historical backfill.',
+            self::HISTORICAL_ATTRIBUTION => 'Closed and distributed before the general ledger existed. '
+                . 'The figures recorded against it are an attribution of who was paid what, not an accounting '
+                . 'result, and the company ledger holds nothing for it until the historical backfill.',
             'not in the ledger' => 'This deal has never been posted, so the ledger holds nothing for it.',
             'trading in progress' => 'Gold from this deal is still held. The result covers only what has been sold.',
             'trading complete, expenses pending' => $unposted > self::EPSILON

@@ -351,10 +351,71 @@ the ledger holds nothing for them, and their recorded 943.31 and 861.06632 are
 attribution records rather than accounting until the backfill establishes where
 the money came from. Recording a realized result for either is refused.
 
-## Not in 3E
+## 3F, first half: period close
 
-Period close, the distribution bridge (3F), reports (3G), historical
-backfill (3H) and admin screens (3I).
+Closing a period is the company saying the figures in it are the ones it will
+answer for. It is refused while anything in the month is still moving:
+
+| Blocker | Why |
+|---|---|
+| trial balance out of balance | a period that does not balance is not a period |
+| a sold-out deal whose result is interim | its figure would change after the close |
+| an expense dated in the month still draft / submitted / approved | it would land in the month after the close, or be lost |
+| an unmatched bank statement line in the month | money the books have not explained |
+
+A deal still holding gold does **not** block a close. Its result belongs to
+whichever month it finally sells in and carries forward.
+
+```bash
+php artisan period status
+php artisan period check  2026-09         # the month-end to-do list; read it as often as you like
+php artisan period close  2026-09 --reason="September month end"
+php artisan period reopen 2026-09 --reason="..."   # Super Admin, reason recorded, close kept as history
+php artisan period:selftest
+```
+
+The close records who, when, why, a reference (`PCL-…`) and a snapshot of what
+the ledger said: the company's trading result, the trial balance, the deals
+counted. Once closed, the record and its snapshot are immutable and nothing
+further may be posted. Reopening follows the same discipline as every other
+waived control: a Super Admin, a reason, both recorded, and the original close
+kept as history.
+
+**The snapshot records the company's own result only.** It carries the line
+`investor_allocation: not determined at close; requires an approved allocation
+rule`, deliberately. What share of a result becomes an investor's is the second
+half of 3F, and it is not built, because the rule it needs is not defined — see
+below.
+
+### An approved claim can now be withdrawn before posting
+
+Found by the close blocker: an approved-but-unposted expense had no exit at all
+(not draft, so not deletable; not submitted, so not rejectable; not posted, so
+not reversible). `reject()` now also accepts an approved claim that has not
+reached the ledger. Approval is a decision about a claim; posting is what makes
+it a cost, and a duplicate can still come to light between the two.
+
+## 3F, second half: investor allocation — NOT BUILT, dependency reported
+
+What exists:
+
+- **per-deal terms**: `gold_lots.investor_share_percent`, `gold_lots.expense_policy`
+  (`deal_before_split` | `company_share`), and a per-investor override on
+  `gold_capital_allocations.share_percent`, set by `gold:set-terms`;
+- **a per-deal split rule**: `LotResultCalculator::splitResult()` applies capital
+  share × profit share to the deal's pool, and refuses when no terms exist;
+- **the legacy fixed-return engine**: `investment_plans.profit_percentage` and
+  `plan_duration`, `investment_profit_logs` — the thing this architecture exists
+  to replace, and which must not be read.
+
+What does not exist, and cannot be inferred from the above without inventing it:
+a **period-level** allocation rule. See the 3F dependency report for the
+decisions required.
+
+## Not in 3F (close)
+
+The investor allocation and distribution (3F, second half), reports (3G),
+historical backfill (3H) and admin screens (3I).
 
 The suspense question is unchanged: 1090 is still empty, and the 2,000 investor
 credit and the two gold purchases remain unexplained until records say otherwise.

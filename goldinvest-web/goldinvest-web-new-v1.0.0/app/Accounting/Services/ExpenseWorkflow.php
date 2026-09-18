@@ -241,11 +241,22 @@ class ExpenseWorkflow
         ]);
     }
 
-    /** Refuse the claim, saying why. A refusal with no reason teaches nobody anything. */
+    /**
+     * Refuse the claim, saying why. A refusal with no reason teaches nobody anything.
+     *
+     * An approved claim may be refused too, so long as it has not reached the
+     * ledger. Approval is a decision about a claim; posting is what makes it a
+     * cost. Between the two a duplicate or a mistake can still come to light,
+     * and a claim that could be neither withdrawn nor posted would be stuck.
+     */
     public function reject(TradingExpense $expense, string $reason, ?Admin $actor = null): TradingExpense
     {
         AccountingPermission::assert($actor, AccountingPermission::EXPENSE_APPROVE);
-        $this->assertStatus($expense, [TradingExpense::STATUS_SUBMITTED], 'rejected');
+        $this->assertStatus($expense, [TradingExpense::STATUS_SUBMITTED, TradingExpense::STATUS_APPROVED], 'rejected');
+
+        if ($expense->journal_id !== null) {
+            throw new PostingRefused('Expense ' . $expense->label() . ' is in the ledger; reverse it rather than rejecting it.');
+        }
 
         if (trim($reason) === '') {
             throw new PostingRefused('A rejection needs a reason; the claimant has to know what to fix.');

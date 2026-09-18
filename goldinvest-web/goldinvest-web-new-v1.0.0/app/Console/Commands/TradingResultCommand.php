@@ -147,7 +147,10 @@ class TradingResultCommand extends Command
             ['Stage', $r['stage']],
         ]);
 
-        if ($r['qualification']) {
+        if ($r['stage'] === RealizedTradingResult::HISTORICAL_ATTRIBUTION) {
+            $this->warn('HISTORICAL ATTRIBUTION - NOT POSTED TO COMPANY GL');
+            $this->line('  ' . $r['qualification']);
+        } elseif ($r['qualification']) {
             $this->warn($r['qualification']);
         } elseif ($r['is_final']) {
             $this->info('This figure is final.');
