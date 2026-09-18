@@ -7,6 +7,7 @@ use App\Http\Controllers\User\StatusController;
 use App\Http\Controllers\User\WalletController;
 use App\Http\Controllers\User\HistoryController;
 use App\Http\Controllers\User\InvestorStatementController;
+use App\Http\Controllers\User\InvestorPositionController;
 use App\Http\Controllers\User\InvestorDocumentController;
 use App\Http\Controllers\User\InvestorDealController;
 use App\Http\Controllers\User\ProfileController;
@@ -107,6 +108,8 @@ Route::prefix("user")->name("user.")->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('generate', 'store')->name('generate');
     });
+    // The investor's own position (Phase 3G): their row only, from the investor ledger.
+    Route::get('position', [InvestorPositionController::class, 'index'])->name('position.index');
     Route::controller(InvestorDocumentController::class)->prefix('documents')->name('documents.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('{document}/download', 'download')->name('download');

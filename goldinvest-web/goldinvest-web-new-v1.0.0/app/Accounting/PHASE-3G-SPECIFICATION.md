@@ -1,6 +1,15 @@
 # Phase 3G — Reporting & Management Specification
 
-**Status: FOR REVIEW. Nothing in this document is implemented.**
+**Status: APPROVED WITH FOUR DECISIONS (incorporated below). Implementation authorised and delivered under this text.**
+
+Decisions incorporated at the approval gate:
+
+1. **Appropriation dating: approved as specified.** May's trading result stays in May; the distribution declared on 5 June is recorded in June; the June P&L shows 7000 with a reference to the May source period; May is unchanged. Added: a *source-period* reference and filter on the P&L (`source_period=`) so management can answer "which earlier trading results were appropriated in this period?". It narrows the listing only; the 7000 figure and the trading result are the GL's whatever the filter. No alternative accounting calculation exists.
+2. **Investor Liability Report: two views.** The admin view (all investors, capital payable, profit payable, ledger reconciliation, wallet control, distribution references) and the investor's own view (their row only: capital position, profit position, movements, distributions, withdrawals, statements). The investor view carries a fixed key list and the self-test asserts that no other investor, no company GL figure, no company cash, no gold lot, no supplier cost and no company-wide P&L can appear in it.
+3. **G1/G2 differences are shown, never suppressed.** On real data the controls read, for example, `Investor Profit Payable - GL 2010 0.00 / Investor Ledger Profit 1,804.37632 / Unreconciled historical difference -1,804.37632 PRE-BACKFILL` and `Investor ledger capital 2,000.00 / GL 2000 0.00 / Difference -2,000.00 PRE-BACKFILL`, captioned *"Pre-backfill reconciliation difference - historical attribution/funding not yet posted to company GL. D2/D3 open."* No flag hides them and no journal is manufactured to close them. 1090 remains visible and untouched.
+4. **Period-close pack: included in 3G.** One private, immutable, hashed PDF per close reference containing the trial balance, P&L, balance sheet, cash flow, period close report, controls, and the allocation/distribution summary; its header carries period, status, close reference, closed by/at, generated at, scope, FINAL status, control results and the SHA-256 note. It is a reporting snapshot, not an accounting record.
+
+Tightened before implementation: **the GL is the financial authority; `gold_lot_results` is the recorded deal-result artifact.** For a final deal the recorded result and the GL-derived result are both shown; a difference is a CONTROL EXCEPTION, never an automatic correction. **G3 stays open**: no retained-earnings sweep is implemented; the balance sheet carries a computed current-result line.
 
 Governing rule, from which everything below follows:
 
@@ -60,7 +69,7 @@ figure with no row is not a reportable figure.
 | FX gain / loss | `journal_lines` on 4100 / 6900 | as posted | any computed FX; none exists |
 | Investor appropriation | `journal_lines` on 7000 | Σ debit − Σ credit | `investor_distributions.pool_usd` (that is the *claim*; 7000 is the *posting*; both shown, reconciled) |
 | Realized trading result, company | `RealizedTradingResult::forCompany(scope)` | 4000 − 5000 − (6000–6899) | anything involving 7000 |
-| Realized result, per deal, **final** | `gold_lot_results` with `realized_at` set | as recorded (immutable) | live recomputation |
+| Realized result, per deal, **final** | GL-derived (4000 − 5000 − (6000–6899) per lot); `gold_lot_results` with `realized_at` set is the recorded artifact shown beside it as a **control** | GL first; recorded compared; difference = CONTROL EXCEPTION | treating the artifact as the authority; live "correction" of either |
 | Realized result, per deal, **interim** | `RealizedTradingResult::forLot()` | live, labelled interim | — |
 | Deal terms | `gold_lots.investor_share_percent`, `expense_policy`, `gold_capital_allocations.share_percent` | as recorded | `investment_plans` |
 | Allocation | `InvestorAllocation::forPeriod()` for preview; `investor_distributions.snapshot` once distributed | policy | any recomputation of a distributed period |
@@ -571,4 +580,4 @@ period-close policy question.
 4. Period-close pack: one PDF bundling §3.1–3.4, 3.7 and 3.9 for a closed
    period, stored privately with a hash — wanted in 3G, or later?
 
-**End of specification. No implementation has been started.**
+**End of specification. Implemented under commit series ending with the 3G delivery; see `README.md` "3G: reporting" for the code map.**

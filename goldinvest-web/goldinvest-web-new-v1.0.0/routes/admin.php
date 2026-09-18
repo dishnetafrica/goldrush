@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\MoneyOutController;
 use App\Http\Controllers\Admin\SetupKycController;
 use App\Http\Controllers\Admin\UserCareController;
 use App\Http\Controllers\Admin\InvestorLedgerController;
+use App\Http\Controllers\Admin\AccountingReportController;
 use App\Http\Controllers\Admin\AdminCareController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\GoldStockController;
@@ -152,6 +153,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('{user}', 'show')->name('show');
         Route::post('{user}/statement', 'statement')->name('statement');
         Route::post('{user}/receipts', 'receipts')->name('receipts');
+    });
+
+    // Phase 3G accounting reports. Read-only: every figure comes from the posted
+    // general ledger and the recorded results; nothing here posts or changes anything.
+    Route::controller(AccountingReportController::class)->prefix('accounting/reports')->name('accounting.report.')->group(function () {
+        Route::get('/', 'dashboard')->name('dashboard');
+        Route::get('trial-balance', 'trialBalance')->name('trial-balance');
+        Route::get('profit-loss', 'profitLoss')->name('profit-loss');
+        Route::get('balance-sheet', 'balanceSheet')->name('balance-sheet');
+        Route::get('cash-flow', 'cashFlow')->name('cash-flow');
+        Route::get('gold-trading', 'goldTrading')->name('gold-trading');
+        Route::get('investor-liability', 'investorLiability')->name('investor-liability');
+        Route::get('controls', 'controls')->name('controls');
+        Route::get('period-close/{period}', 'periodClose')->name('period-close');
+        Route::post('period-close/{period}/pack', 'packStore')->name('pack.store');
+        Route::get('pack/{pack}/download', 'packDownload')->name('pack.download');
     });
 
     Route::controller(UserCareController::class)->prefix('users')->name('users.')->group(function () {

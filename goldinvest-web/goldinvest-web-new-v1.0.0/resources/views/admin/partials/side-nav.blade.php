@@ -69,6 +69,23 @@
                     ]
                 ])
 
+                {{-- Section Accounting (Phase 3G: read-only reports over the posted ledger) --}}
+                @include('admin.components.side-nav.link-group',[
+                    'group_title'       => __("Accounting"),
+                    'group_links'       => [
+                        [
+                            'title'     => __("Accounting Reports"),
+                            'route'     => "admin.accounting.report.dashboard",
+                            'icon'      => "menu-icon las la-file-invoice-dollar",
+                        ],
+                        [
+                            'title'     => __("Investor Ledgers"),
+                            'route'     => "admin.investor.ledger.index",
+                            'icon'      => "menu-icon las la-book",
+                        ],
+                    ]
+                ])
+
                 {{-- Section Transaction & Logs --}}
                 @include('admin.components.side-nav.link-group',[
                     'group_title'       => __("Transactions & Logs"),

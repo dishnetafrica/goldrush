@@ -531,6 +531,68 @@ every eligible deal with its result, every investor's capital share and profit
 share and amount, reserve, pool, reference, journal, actor, timestamp. Read
 this, not the deals, to see what a past distribution was based on.
 
+## 3G: reporting and management
+
+A reporting layer over an accounting system that is frozen. Every report
+reads; none writes anything financial. The only marks reporting leaves are an
+append-only audit row per render (`accounting_report_views`) and, for a closed
+period, the close pack (`period_close_packs`): one PDF per close reference,
+stored on the private `accounting-private` disk, hashed, immutable, and a
+snapshot rather than an accounting record.
+
+Code map: `app/Accounting/Reports/` — `ReportScope` (a period or a date range,
+never both; INTERIM unless the period is closed), `LedgerFigures` (the one way
+a report reads journal lines), `FinancialStatements` (trial balance with
+opening balances, P&L, balance sheet, cash flow), `TradingReports` (gold
+trading, period close report, dashboard), `InvestorLiabilityReport` (admin
+view and the investor's own view), `ControlReports`, `Control` (RECONCILED /
+CONTROL EXCEPTION / PRE-BACKFILL), `ReportAudit`, `CsvExport`,
+`ClosePackBuilder`. Console: `report {trial-balance|pl|balance-sheet|cash-flow|
+gold|investors|period|controls|dashboard|pack}` and `report:selftest`. Web:
+`admin/accounting/reports/*` (`AccountingReportController`) and the investor's
+`user/position` (`InvestorPositionController`).
+
+### Source-of-truth matrix
+
+| Figure | Authoritative source | Never from |
+|---|---|---|
+| Cash, bank | journal lines on cash-control accounts (1000/1010) | any stored balance |
+| Suspense | journal lines on 1090; always shown while D2/D3 is open | — |
+| Gold inventory | journal lines on 1100/1110 per lot; grams and unit cost from `LotCostBasis` | `gold_lots.total_cost_usd`, market prices |
+| Receivables | 1300 | `gold_sales` |
+| Investor capital payable | 2000 | wallet `balance`, capital allocations |
+| Investor profit payable | 2010 | wallet `profit_balance` |
+| Accrued expenses | 2100 | expense `payment_status` |
+| Owner's capital, retained earnings | 3000, 3100 | — |
+| Revenue, COGS, deal expenses | 4000, 5000, 6000–6899 | `gold_sales`, `LotResultCalculator`, `gold_trading_expenses` |
+| FX | 4100 / 6900 as posted; never computed | — |
+| Appropriation | 7000, explained by `investor_distributions` | `investor_distributions.pool_usd` as the posting |
+| Realized trading result | `RealizedTradingResult` (4000 − 5000 − (6000–6899)); 7000 never an input | — |
+| Deal result, final | GL-derived; `gold_lot_results` shown beside it as the recorded artifact and control | the artifact as authority |
+| Investor position and history | `investor_ledger_entries` | `user_wallets` (control figure only) |
+| Allocation, distribution | `InvestorAllocation`, `investor_distributions` + lines | any recomputation of a distributed period |
+| Period status, close evidence | `accounting_periods` | — |
+| Historical attribution | `gold_lot_results` distributed with `realized_at` null; labelled, excluded from every total | — |
+
+Forbidden as sources: `user_wallets` for any total, `investment_plans`,
+`investment_profit_logs`, `profit_percentage`, and any legacy profit field.
+
+### What the controls say
+
+Every control shows two figures and their difference. RECONCILED means they
+agree. CONTROL EXCEPTION means they do not and nothing explains it. PRE-BACKFILL
+means they do not because of the known D2/D3 gap: the real investor ledger
+holds 1,804.37632 of profit and 2,000.00 of capital that no company-side journal
+yet records. That difference is shown with its caption on every render; it is
+not suppressed behind a flag and no journal is manufactured to close it.
+
+### Open, deliberately
+
+G1: investor withdrawals are ledger events with no GL posting; 2200 has never
+been posted to. G2: no real investor capital is on 2000. G3: no retained-
+earnings sweep at close. G4: inventory is at cost only. Each is captioned where
+it shows, and none is implemented here.
+
 ## Architectural invariants (approved at the 3F gate, commit 85139ab)
 
 These are not guidelines. Anything built after 3F — reports, screens, the

@@ -41,6 +41,14 @@ final class AccountingPermission
 
     public const DISTRIBUTION_POST = 'admin.accounting.distribution.post';
 
+    // Phase 3G: reporting is read-only, and these grant reading only. The
+    // investor liability report and exports are separate grants because one
+    // exposes every investor's position and the other takes figures off-site.
+    public const REPORT_INVESTOR = 'admin.accounting.report.investor';
+    public const REPORT_EXPORT   = 'admin.accounting.report.export';
+    public const DASHBOARD_VIEW  = 'admin.accounting.dashboard.view';
+    public const CONTROL_VIEW    = 'admin.accounting.control.view';
+
     public const CASH_MANAGE         = 'admin.accounting.cash.manage';
     public const CASH_POST           = 'admin.accounting.cash.post';
     public const BANK_IMPORT         = 'admin.accounting.bank.import';
@@ -58,6 +66,7 @@ final class AccountingPermission
             self::EXPENSE_VIEW, self::EXPENSE_CREATE, self::EXPENSE_SUBMIT,
             self::EXPENSE_APPROVE, self::EXPENSE_POST, self::EXPENSE_PAY,
             self::RESULT_VIEW, self::RESULT_RECORD, self::DISTRIBUTION_POST,
+            self::REPORT_INVESTOR, self::REPORT_EXPORT, self::DASHBOARD_VIEW, self::CONTROL_VIEW,
         ];
     }
 

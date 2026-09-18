@@ -58,6 +58,14 @@ return [
             'throw'      => false,
         ],
 
+        // Period-close packs (Phase 3G): one immutable PDF per close, hashed.
+        'accounting-private' => [
+            'driver'     => 'local',
+            'root'       => storage_path('app/private/accounting'),
+            'visibility' => 'private',
+            'throw'      => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
